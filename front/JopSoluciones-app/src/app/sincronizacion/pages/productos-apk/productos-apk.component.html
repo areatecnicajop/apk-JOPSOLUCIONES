@@ -1,0 +1,78 @@
+<div class="prod-container">
+
+  <!-- HEADER -->
+  <div class="prod-header">
+    <div>
+      <h1 class="prod-title">📱 Productos APK</h1>
+      <span class="prod-sub" *ngIf="!loading && !error">{{ productos.length }} productos en el catálogo local de la app</span>
+    </div>
+    <button class="sync-btn" [disabled]="syncing" (click)="actualizarCatalogo()">
+      <span *ngIf="!syncing">🔄 Actualizar catálogo</span>
+      <span *ngIf="syncing">Actualizando...</span>
+    </button>
+  </div>
+
+  <!-- MENSAJE DE SYNC -->
+  <div *ngIf="syncMsg" class="sync-msg" [class.sync-msg-error]="syncError">
+    {{ syncMsg }}
+  </div>
+
+  <!-- LOADING -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <span>Cargando catálogo...</span>
+  </div>
+
+  <!-- ERROR -->
+  <div *ngIf="error && !loading" class="error-state">
+    <div class="error-icon">⚠️</div>
+    <div class="error-msg">{{ error }}</div>
+    <button class="retry-btn" (click)="loadProductos()">🔄 Reintentar</button>
+  </div>
+
+  <!-- CONTENT -->
+  <ng-container *ngIf="!loading && !error">
+    <!-- FILTERS -->
+    <div class="prod-filters">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" [(ngModel)]="searchQuery" placeholder="Buscar por nombre, SKU o categoría...">
+        <button *ngIf="searchQuery" class="search-clear" (click)="searchQuery = ''">✕</button>
+      </div>
+
+      <div class="chip-row">
+        <button class="cat-chip" [class.chip-on]="categoriaFilter === null" (click)="categoriaFilter = null">
+          Todos
+        </button>
+        <button *ngFor="let cat of categorias" class="cat-chip" [class.chip-on]="categoriaFilter === cat"
+                (click)="categoriaFilter = cat">
+          {{ cat }}
+        </button>
+      </div>
+    </div>
+
+    <!-- EMPTY -->
+    <div *ngIf="filteredProductos.length === 0" class="empty-state">
+      <ng-container *ngIf="productos.length === 0; else sinFiltro">
+        Catálogo local vacío. Presiona "Actualizar catálogo" para traer los productos.
+      </ng-container>
+      <ng-template #sinFiltro>Sin productos para los filtros aplicados.</ng-template>
+    </div>
+
+    <!-- LIST -->
+    <div class="prod-list">
+      <div *ngFor="let p of filteredProductos" class="prod-card">
+        <div class="prod-card-top">
+          <span class="sku-badge">{{ p.sku }}</span>
+          <span class="prod-price">{{ formatPrice(p) }}</span>
+        </div>
+        <div class="prod-name">{{ p.name }}</div>
+        <div class="prod-bottom">
+          <span class="cat-tag" *ngIf="p.categoryName">{{ p.categoryName }}</span>
+          <span class="stock-tag" [class.stock-zero]="!p.stock">{{ p.stock || 0 }} en stock</span>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+</div>

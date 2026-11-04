@@ -1,0 +1,227 @@
+.cw-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0f1117;
+  color: #e2e8f0;
+  overflow: hidden;
+}
+
+.cw-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 20px 12px;
+  border-bottom: 1px solid #1e2235;
+}
+
+.cw-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0 0 2px;
+}
+
+.cw-sub {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.cw-btn-reload {
+  background: #1a1d27;
+  border: 1px solid #2a2d3e;
+  color: #94a3b8;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cw-btn-reload:hover { border-color: #6366f1; color: #e2e8f0; }
+
+.loading-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #64748b;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #1e2235;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #94a3b8;
+}
+.error-icon { font-size: 2.5rem; }
+.error-msg { font-size: 0.9rem; text-align: center; max-width: 280px; }
+.retry-btn {
+  background: #6366f1;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.retry-btn:hover { background: #4f46e5; }
+
+.cw-filters {
+  padding: 12px 16px 0;
+  border-bottom: 1px solid #1e2235;
+}
+.search-wrap {
+  display: flex;
+  align-items: center;
+  background: #1a1d27;
+  border: 1px solid #1e2235;
+  border-radius: 10px;
+  padding: 0 12px;
+  margin-bottom: 10px;
+}
+.search-icon { font-size: 0.9rem; margin-right: 8px; opacity: 0.6; }
+.search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  padding: 10px 0;
+}
+.search-clear {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 4px;
+}
+
+.cw-empty {
+  text-align: center;
+  color: #475569;
+  padding: 40px 0;
+  font-size: 0.9rem;
+}
+
+.cw-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cw-row {
+  background: #1a1d27;
+  border: 1px solid #1e2235;
+  border-radius: 12px;
+  padding: 12px 14px;
+  transition: border-color 0.15s;
+  cursor: pointer;
+}
+.cw-row:hover { border-color: #6366f1; }
+.cw-row.cw-row-nueva { border-color: #22c55e50; }
+.cw-row.cw-row-expanded { border-radius: 12px 12px 0 0; border-bottom-color: transparent; }
+
+.cw-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cw-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.cw-badge {
+  background: #1e2235;
+  color: #94a3b8;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-family: monospace;
+  font-weight: 600;
+}
+.cw-badge.cw-badge-nueva {
+  background: #22c55e20;
+  color: #4ade80;
+}
+
+.cw-expand-arrow {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.cw-path {
+  margin-top: 4px;
+  font-size: 0.76rem;
+  color: #64748b;
+  font-family: monospace;
+}
+
+/* ── Preview de lo que se sube a WooCommerce ─────────────────── */
+.cw-preview {
+  background: #13151f;
+  border: 1px solid #6366f1;
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  padding: 14px;
+}
+.cw-preview-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #a5b4fc;
+  margin-bottom: 10px;
+}
+.cw-preview-loading, .cw-preview-error {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-align: center;
+  padding: 12px 0;
+}
+.cw-preview-error { color: #f87171; }
+
+.cw-preview-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cw-preview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cw-preview-item span {
+  font-size: 0.68rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cw-preview-item strong {
+  font-size: 0.85rem;
+  color: #e2e8f0;
+  font-weight: 600;
+}

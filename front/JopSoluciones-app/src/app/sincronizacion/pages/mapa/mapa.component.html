@@ -1,0 +1,279 @@
+<div class="mapa-wrapper">
+
+  <!-- Filter bar -->
+  <div class="mapa-filterbar">
+    <div class="chip-row">
+      <button class="status-chip" [class.chip-on]="mostrarClientes" (click)="toggleClientes()" style="--scolor:#22c55e">
+        🏢 Clientes <span class="chip-count">{{clientes.length}}</span>
+      </button>
+      <button class="status-chip" [class.chip-on]="mostrarProspectos" (click)="toggleProspectos()" style="--scolor:#f97316">
+        🎯 Prospectos <span class="chip-count">{{prospectos.length}}</span>
+      </button>
+
+      <ng-container *ngIf="mostrarClientes">
+        <span class="filter-sep"></span>
+        <button class="status-chip" [class.chip-on]="statusFilter===null" (click)="applyStatusFilter(null)">Todos</button>
+        <button *ngFor="let s of statusKeys()" class="status-chip" [class.chip-on]="statusFilter===s"
+                [style.--scolor]="statusColor(s)" (click)="applyStatusFilter(s)">{{statusLabel(s)}}</button>
+      </ng-container>
+
+      <!-- Dropdown rubros -->
+      <ng-container *ngIf="mostrarProspectos">
+        <span class="filter-sep"></span>
+        <div class="rubro-dropdown-wrap">
+          <button class="status-chip rubro-trigger" [class.chip-on]="rubrosSeleccionados.size > 0"
+                  (click)="toggleRubroDropdown()">
+            🏷️ {{rubrosActivosLabel}} <span class="dropdown-arrow">{{rubroDropdownOpen ? '▲' : '▼'}}</span>
+          </button>
+          <div class="rubro-dropdown" *ngIf="rubroDropdownOpen">
+            <div class="rubro-dropdown-header">
+              <button class="rubro-action-btn" (click)="seleccionarTodosRubros()">Todos</button>
+              <button class="rubro-action-btn" (click)="deseleccionarTodosRubros()">Ninguno</button>
+            </div>
+            <label class="rubro-item" *ngFor="let r of rubrosDisponibles">
+              <input type="checkbox" [checked]="isRubroActivo(r)" (change)="toggleRubro(r)">
+              <span class="rubro-dot" [style.background]="rubroColor(r)"></span>
+              <span class="rubro-label">{{r}}</span>
+            </label>
+          </div>
+        </div>
+      </ng-container>
+
+      <button class="status-chip" style="margin-left:auto" (click)="loadData()" title="Recargar">🔄</button>
+    </div>
+  </div>
+
+  <!-- Área del mapa (contiene sus propios overlays posicionados) -->
+  <div class="mapa-area">
+    <div *ngIf="loading" class="mapa-overlay">
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+      <span>Cargando datos...</span>
+    </div>
+    <div *ngIf="error && !loading" class="mapa-overlay mapa-error">
+      <span>⚠️ {{error}}</span>
+      <button (click)="loadData()">Reintentar</button>
+    </div>
+
+    <div id="clientes-map" class="mapa-div"></div>
+
+    <div class="mapa-counter">📍 {{totalMarcadores}} en mapa</div>
+  </div>
+
+  <!-- ═══ PLANIFICADOR DE RUTA — fijo, debajo del mapa ═══════════════ -->
+  <div class="ruta-panel">
+
+    <div class="ruta-panel-header">
+      <span class="ruta-title">🗺️ Planificador de Ruta</span>
+    </div>
+
+    <div class="ruta-panel-body">
+
+    <!-- ═══ Columna principal: config / resultado ═══ -->
+    <div class="ruta-panel-main">
+
+    <!-- Config siempre visible (antes de calcular) -->
+    <div *ngIf="rutas.length === 0" class="ruta-config">
+
+      <!-- Punto Inicio -->
+      <div class="ruta-field">
+        <label class="ruta-point-label" style="color:#22c55e">🟢 Punto de inicio</label>
+        <input class="ruta-point-input"
+               [class.ruta-point-ok]="!!puntoInicio"
+               placesAutocomplete
+               (placeSelected)="onInicioSelected($event)"
+               [(ngModel)]="labelInicio"
+               placeholder="{{ hasGmapsKey ? 'Escribe y selecciona del listado' : 'Haz click en el mapa' }}">
+        <span class="ruta-point-check" *ngIf="puntoInicio">✓</span>
+        <button class="ruta-point-clear" *ngIf="puntoInicio" (click)="onInicioClear()">✕</button>
+      </div>
+
+      <!-- Punto Fin -->
+      <div class="ruta-field">
+        <label class="ruta-point-label" style="color:#ef4444">🔴 Punto de llegada</label>
+        <input class="ruta-point-input"
+               [class.ruta-point-ok]="!!puntoFin"
+               placesAutocomplete
+               (placeSelected)="onFinSelected($event)"
+               [(ngModel)]="labelFin"
+               placeholder="{{ hasGmapsKey ? 'Escribe y selecciona del listado' : 'Haz click en el mapa' }}">
+        <span class="ruta-point-check" *ngIf="puntoFin">✓</span>
+        <button class="ruta-point-clear" *ngIf="puntoFin" (click)="onFinClear()">✕</button>
+      </div>
+
+      <div class="ruta-map-hint" *ngIf="!puntoInicio || !puntoFin">
+        <span>🖱️</span>
+        <span *ngIf="!puntoInicio">Haz click en el mapa para marcar el <strong>inicio</strong></span>
+        <span *ngIf="puntoInicio && !puntoFin">Ahora click en el mapa para la <strong>llegada</strong></span>
+      </div>
+
+      <!-- Selector de modo -->
+      <div class="ruta-modo-tabs">
+        <button class="ruta-modo-tab" [class.ruta-modo-tab-on]="modoCalculo === 'auto'" (click)="setModoCalculo('auto')">
+          ⚡ Automática
+        </button>
+        <button class="ruta-modo-tab" [class.ruta-modo-tab-on]="modoCalculo === 'manual'" (click)="setModoCalculo('manual')">
+          ✍️ Manual
+        </button>
+      </div>
+
+      <!-- ── Modo automático ── -->
+      <ng-container *ngIf="modoCalculo === 'auto'">
+        <div class="ruta-field">
+          <label>Filtrar por rubro</label>
+          <select [(ngModel)]="rutaRubroFiltro" class="ruta-select">
+            <option [ngValue]="null">Todos los rubros</option>
+            <option *ngFor="let r of rubrosDisponibles" [value]="r">{{r}}</option>
+          </select>
+        </div>
+
+        <div class="ruta-field">
+          <label>Máx. paradas por ruta: <strong>{{maxParadas}}</strong></label>
+          <input type="range" [(ngModel)]="maxParadas" min="3" max="20" step="1" class="ruta-range">
+        </div>
+
+        <button class="ruta-btn-calcular" (click)="calcularRutas()"
+                [disabled]="calculando || !puntoInicio || !puntoFin">
+          {{ calculando ? 'Calculando...' : '⚡ Calcular 4 Rutas' }}
+        </button>
+      </ng-container>
+
+      <!-- ── Modo manual ── -->
+      <ng-container *ngIf="modoCalculo === 'manual'">
+        <div class="ruta-map-hint">
+          <span>🖱️</span>
+          <span>Haz click en los <strong>prospectos del mapa</strong> para agregarlos a la ruta, en el orden que quieras visitarlos.</span>
+        </div>
+
+        <div class="ruta-lista-title">Paradas seleccionadas ({{paradasManuales.length}})</div>
+        <div class="ruta-lista" *ngIf="paradasManuales.length > 0">
+          <div class="ruta-parada-item" *ngFor="let p of paradasManuales; let i = index">
+            <div class="ruta-num" [style.background]="rubroColor(p.rubro ?? '')">{{i + 1}}</div>
+            <div class="ruta-parada-info">
+              <div class="ruta-parada-nombre">{{p.nombre}}</div>
+              <div class="ruta-parada-sub">
+                <span [style.color]="rubroColor(p.rubro ?? '')">{{p.rubro}}</span>
+              </div>
+            </div>
+            <div class="ruta-parada-manual-actions">
+              <button (click)="moverParadaManual(i, -1)" [disabled]="i === 0" title="Subir">▲</button>
+              <button (click)="moverParadaManual(i, 1)" [disabled]="i === paradasManuales.length - 1" title="Bajar">▼</button>
+              <button (click)="quitarParadaManual(p)" title="Quitar">✕</button>
+            </div>
+          </div>
+        </div>
+        <div class="ruta-vacia" *ngIf="paradasManuales.length === 0">
+          Ningún prospecto seleccionado todavía.
+        </div>
+
+        <button class="ruta-btn-calcular" (click)="calcularRutaManual()"
+                [disabled]="calculando || !puntoInicio || !puntoFin || paradasManuales.length === 0">
+          {{ calculando ? 'Calculando...' : '✍️ Calcular Ruta Manual' }}
+        </button>
+      </ng-container>
+    </div>
+
+    <!-- Rutas calculadas -->
+    <div *ngIf="rutas.length > 0" class="ruta-resultado">
+
+      <button class="ruta-btn-nueva" (click)="nuevaBusqueda()">
+        ✕ Dejar de ver esta ruta — ingresar una nueva
+      </button>
+
+      <!-- Tabs de rutas -->
+      <div class="rutas-tabs">
+        <button *ngFor="let r of rutas" class="ruta-tab"
+                [class.ruta-tab-active]="rutaSeleccionada === r.id"
+                [style.--rcolor]="r.color"
+                (click)="seleccionarRuta(r.id)"
+                [disabled]="r.cargando">
+          <span class="ruta-tab-icono">{{r.icono}}</span>
+          <span class="ruta-tab-nombre">{{r.nombre}}</span>
+          <span class="ruta-tab-paradas" *ngIf="!r.cargando">{{r.paradas.length}} paradas</span>
+          <span class="ruta-tab-paradas" *ngIf="r.cargando">...</span>
+        </button>
+      </div>
+
+      <!-- Detalle de la ruta seleccionada -->
+      <ng-container *ngIf="rutaActual">
+
+        <div class="ruta-desc">{{rutaActual.descripcion}}</div>
+
+        <div class="ruta-stats" *ngIf="rutaActual.distanciaKm !== null">
+          <span>📏 {{rutaActual.distanciaKm}} km</span>
+          <span>⏱️ ~{{rutaActual.duracionMin}} min</span>
+          <span>📍 {{rutaActual.paradas.length}} paradas</span>
+          <span *ngIf="rutaActual.error" style="color:#f87171">⚠️ sin OSRM</span>
+        </div>
+
+        <button class="ruta-btn-gmaps" (click)="abrirEnGoogleMaps()">
+          🗺️ Abrir en Google Maps
+        </button>
+
+        <!-- Guardar ruta -->
+        <div class="ruta-guardar-box" *ngIf="!rutaCargadaUuid">
+          <button class="ruta-btn-guardar" *ngIf="!mostrarFormGuardar" (click)="abrirFormGuardar()">
+            💾 Guardar ruta
+          </button>
+          <div class="ruta-guardar-form" *ngIf="mostrarFormGuardar">
+            <input class="ruta-point-input" [(ngModel)]="nombreNuevaRuta" placeholder="Nombre de la ruta">
+            <div class="ruta-guardar-form-actions">
+              <button class="ruta-btn-guardar" [disabled]="guardandoRuta || !nombreNuevaRuta.trim()" (click)="guardarRutaActual()">
+                {{ guardandoRuta ? 'Guardando...' : '✓ Guardar' }}
+              </button>
+              <button class="ruta-btn-cancelar" (click)="cancelarGuardar()">Cancelar</button>
+            </div>
+          </div>
+        </div>
+        <div class="ruta-guardada-msg" *ngIf="rutaGuardadaMsg">{{rutaGuardadaMsg}}</div>
+
+        <div class="ruta-lista-title">Orden de visitas</div>
+        <div class="ruta-lista">
+          <div class="ruta-parada-item" *ngFor="let p of rutaActual.paradas">
+            <div class="ruta-num" [style.background]="rubroColor(p.prospecto.rubro ?? '')">{{p.orden}}</div>
+            <div class="ruta-parada-info">
+              <div class="ruta-parada-nombre">{{p.prospecto.nombre}}</div>
+              <div class="ruta-parada-sub">
+                <span [style.color]="rubroColor(p.prospecto.rubro ?? '')">{{p.prospecto.rubro}}</span>
+                <span *ngIf="p.prospecto.comuna"> · {{p.prospecto.comuna}}</span>
+              </div>
+              <div class="ruta-parada-tel" *ngIf="p.prospecto.telefono">
+                <a [href]="'tel:' + p.prospecto.telefono">📞 {{p.prospecto.telefono}}</a>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="rutaActual.paradas.length === 0" class="ruta-vacia">
+            Sin prospectos en este corredor
+          </div>
+        </div>
+
+      </ng-container>
+    </div>
+
+    </div>
+    <!-- ═══ Columna lateral: rutas guardadas, siempre visible ═══ -->
+    <div class="ruta-panel-side">
+      <div class="ruta-guardadas-header">
+        <span>📂 Rutas guardadas</span>
+      </div>
+      <div *ngIf="cargandoRutasGuardadas" class="ruta-guardadas-loading">Cargando…</div>
+      <div *ngIf="!cargandoRutasGuardadas && rutasGuardadas.length === 0" class="ruta-guardadas-empty">
+        Todavía no guardas ninguna ruta.
+      </div>
+      <div class="ruta-guardada-item" *ngFor="let r of rutasGuardadas" (click)="cargarRutaGuardada(r)">
+        <div class="ruta-guardada-icono">{{ r.tipo === 'manual' ? '✍️' : '⚡' }}</div>
+        <div class="ruta-guardada-info">
+          <div class="ruta-guardada-nombre">{{r.nombre}}</div>
+          <div class="ruta-guardada-sub">
+            {{r.createdAt | date:'dd/MM/yy HH:mm'}}
+            <span *ngIf="r.distanciaKm"> · {{r.distanciaKm}} km</span>
+          </div>
+        </div>
+        <button class="ruta-guardada-del" (click)="eliminarRutaGuardada(r, $event)" title="Eliminar">🗑️</button>
+      </div>
+    </div>
+
+    </div>
+  </div>
+  <!-- ═══════════════════════════════════════════════════════ -->
+
+</div>

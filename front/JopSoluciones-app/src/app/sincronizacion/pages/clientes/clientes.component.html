@@ -1,0 +1,259 @@
+<div class="cli-container">
+
+  <!-- HEADER -->
+  <div class="cli-header">
+    <div>
+      <h1 class="cli-title">👥 Clientes</h1>
+      <span class="cli-sub">{{ clientes.length }} clientes · {{ filteredClientes.length }} mostrados</span>
+    </div>
+    <button class="btn-nuevo" (click)="openNew()">➕ Nuevo</button>
+  </div>
+
+  <!-- SEARCH -->
+  <div class="cli-filters">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" [(ngModel)]="searchQuery" placeholder="Buscar por nombre, teléfono, email...">
+      <button *ngIf="searchQuery" class="search-clear" (click)="searchQuery = ''">✕</button>
+    </div>
+
+    <div class="chip-row">
+      <button class="status-chip" [class.chip-on]="statusFilter === null" (click)="statusFilter = null">
+        Todos
+      </button>
+      <button *ngFor="let s of statusKeys()" class="status-chip" [class.chip-on]="statusFilter === s"
+              [style.--scolor]="statusColor(s)" (click)="statusFilter = s">
+        {{ statusLabel(s) }}
+      </button>
+    </div>
+  </div>
+
+  <!-- LIST -->
+  <div class="cli-list">
+    <div *ngIf="filteredClientes.length === 0" class="empty-state">
+      Sin clientes para los filtros aplicados.
+    </div>
+
+    <div *ngFor="let c of filteredClientes" class="cli-card" (click)="openDetail(c)">
+      <div class="cli-avatar" [style.background]="statusColor(c.status) + '22'" [style.color]="statusColor(c.status)">
+        {{ avatarLetter(c) }}
+      </div>
+      <div class="cli-body">
+        <div class="cli-name">{{ c.name }}</div>
+        <div class="cli-meta">
+          <span class="cat-badge" *ngIf="c.categoryName">{{ c.categoryName }}</span>
+          <span class="cli-phone" *ngIf="c.phone">📞 {{ c.phone }}</span>
+        </div>
+      </div>
+      <span class="status-badge" [style.background]="statusColor(c.status) + '22'" [style.color]="statusColor(c.status)">
+        {{ statusLabel(c.status) }}
+      </span>
+    </div>
+  </div>
+
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="overlay" *ngIf="selectedCliente" (click)="closeDetail()">
+  <div class="detail-panel" (click)="$event.stopPropagation()">
+    <div class="panel-handle"></div>
+
+    <div class="detail-status-row">
+      <span class="status-badge-lg" [style.background]="statusColor(selectedCliente.status)" style="color:#fff">
+        {{ statusLabel(selectedCliente.status) }}
+      </span>
+    </div>
+
+    <h2 class="detail-name">{{ selectedCliente.name }}</h2>
+
+    <div class="detail-row" *ngIf="selectedCliente.address">📌 {{ selectedCliente.address }}</div>
+    <div class="detail-row" *ngIf="selectedCliente.categoryName">🏷️ {{ selectedCliente.categoryName }}</div>
+
+    <div class="detail-divider"></div>
+
+    <div class="detail-info" *ngIf="selectedCliente.phone">
+      <span class="info-label">Teléfono</span>
+      <span>{{ selectedCliente.phone }}</span>
+    </div>
+    <div class="detail-info" *ngIf="selectedCliente.email">
+      <span class="info-label">Email</span>
+      <span>{{ selectedCliente.email }}</span>
+    </div>
+    <div class="detail-info" *ngIf="selectedCliente.notes">
+      <span class="info-label">Notas</span>
+      <span>{{ selectedCliente.notes }}</span>
+    </div>
+
+    <div class="detail-divider"></div>
+
+    <div class="detail-actions">
+      <a *ngIf="selectedCliente.phone" [href]="'tel:' + selectedCliente.phone" class="det-btn det-call">📞 Llamar</a>
+      <a *ngIf="selectedCliente.email" [href]="'mailto:' + selectedCliente.email" class="det-btn det-email">✉️ Email</a>
+
+      <ng-container *ngIf="isProspecto(selectedCliente)">
+        <button class="det-btn det-promover" (click)="promoverACliente(selectedCliente)">⭐ Convertir a Cliente</button>
+      </ng-container>
+
+      <ng-container *ngIf="!isProspecto(selectedCliente)">
+        <button class="det-btn det-edit" (click)="openEdit(selectedCliente)">✏️ Editar</button>
+        <button class="det-btn det-del" (click)="deleteCliente(selectedCliente)">🗑️ Eliminar</button>
+      </ng-container>
+    </div>
+
+    <!-- ── PEDIDOS (solo clientes activos) ───────────────────── -->
+    <ng-container *ngIf="selectedCliente.status === 'active'">
+      <div class="detail-divider"></div>
+
+      <div class="pedidos-header">
+        <span class="pedidos-title">📦 Pedidos</span>
+        <span *ngIf="loadingPedidos" class="pedidos-loading">cargando...</span>
+        <span *ngIf="!loadingPedidos" class="pedidos-count">{{ pedidos.length }} pedido{{ pedidos.length !== 1 ? 's' : '' }}</span>
+        <button class="btn-nuevo-pedido" (click)="openPedidoForm()">➕ Nuevo pedido</button>
+      </div>
+
+      <div *ngIf="!loadingPedidos && pedidos.length === 0" class="pedidos-empty">
+        Sin pedidos registrados aún.
+      </div>
+
+      <div *ngFor="let p of pedidos" class="pedido-card">
+        <div class="pedido-card-head">
+          <span class="pedido-status-dot" [style.background]="pedidoStatusColor(p.status)"></span>
+          <span class="pedido-fecha">{{ p.createdAt | date:'dd/MM/yyyy' }}</span>
+          <span class="pedido-status-label" [style.color]="pedidoStatusColor(p.status)">{{ pedidoStatusLabel(p.status) }}</span>
+          <span class="pedido-total">{{ formatPrice(p.total) }}</span>
+        </div>
+
+        <div *ngFor="let item of parsePedidoItems(p)" class="pedido-item">
+          <span class="pedido-item-name">{{ item.name }}</span>
+          <span class="pedido-item-qty">x{{ item.qty }}</span>
+          <span class="pedido-item-price">{{ formatPrice(item.total) }}</span>
+        </div>
+
+        <div *ngIf="p.notes" class="pedido-notes">💬 {{ p.notes }}</div>
+
+        <div class="pedido-actions">
+          <button *ngIf="p.status === 'pending'" class="p-btn p-confirm"
+                  (click)="cambiarEstadoPedido(p, 'confirmed')">✓ Confirmar</button>
+          <button *ngIf="p.status === 'pending'" class="p-btn p-cancel"
+                  (click)="cambiarEstadoPedido(p, 'cancelled')">✕ Cancelar</button>
+          <button *ngIf="p.status !== 'pending'" class="p-btn p-pending"
+                  (click)="cambiarEstadoPedido(p, 'pending')">↩ Pendiente</button>
+          <button class="p-btn p-del" (click)="deletePedido(p)">🗑</button>
+        </div>
+      </div>
+    </ng-container>
+
+    <button class="panel-close" (click)="closeDetail()">✕ Cerrar</button>
+  </div>
+</div>
+
+<!-- FORM PANEL (cliente) -->
+<div class="overlay" *ngIf="showForm" (click)="closeForm()">
+  <div class="detail-panel form-panel" (click)="$event.stopPropagation()">
+    <div class="panel-handle"></div>
+    <h2 class="detail-name">{{ editingCliente ? '✏️ Editar Cliente' : '➕ Nuevo Cliente' }}</h2>
+
+    <div class="form-group">
+      <label>Nombre *</label>
+      <input [(ngModel)]="formData.name" placeholder="Nombre del cliente" class="form-input">
+    </div>
+    <div class="form-group">
+      <label>Teléfono</label>
+      <input [(ngModel)]="formData.phone" placeholder="+56 9 XXXX XXXX" class="form-input">
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input [(ngModel)]="formData.email" placeholder="correo@ejemplo.com" class="form-input">
+    </div>
+    <div class="form-group">
+      <label>Dirección</label>
+      <input [(ngModel)]="formData.address"
+             placesAutocomplete
+             (placeSelected)="onPlaceSelected($event)"
+             placeholder="Calle y número (sugerencias Google Maps)"
+             class="form-input">
+    </div>
+    <div class="form-group">
+      <label>Categoría</label>
+      <input [(ngModel)]="formData.categoryName" placeholder="Ej: Ferretería" class="form-input">
+    </div>
+    <div class="form-group">
+      <label>Estado</label>
+      <select [(ngModel)]="formData.status" class="form-input">
+        <option *ngFor="let s of statusKeys()" [value]="s">{{ statusLabel(s) }}</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Notas</label>
+      <textarea [(ngModel)]="formData.notes" placeholder="Observaciones..." class="form-input form-textarea"></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-cancel" (click)="closeForm()">Cancelar</button>
+      <button class="btn-save" (click)="saveCliente()" [disabled]="!formData.name || saving">{{ saving ? 'Guardando...' : 'Guardar' }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- FORM PEDIDO -->
+<div class="overlay pedido-overlay" *ngIf="showPedidoForm" (click)="closePedidoForm()">
+  <div class="detail-panel pedido-panel" (click)="$event.stopPropagation()">
+    <div class="panel-handle"></div>
+    <h2 class="detail-name">🛒 Nuevo Pedido — {{ selectedCliente?.name }}</h2>
+
+    <!-- Buscador productos -->
+    <div class="form-group">
+      <label>Buscar producto</label>
+      <div class="search-wrap" style="margin-bottom:0">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" [(ngModel)]="productoQuery" placeholder="Nombre o SKU...">
+      </div>
+    </div>
+
+    <!-- Lista de productos -->
+    <div class="prod-list">
+      <div *ngIf="loadingProductos" class="pedidos-loading" style="padding:12px 0">Cargando productos...</div>
+      <div *ngFor="let p of productosFiltrados" class="prod-row" (click)="agregarAlCarrito(p)">
+        <div class="prod-info">
+          <span class="prod-name">{{ p.name }}</span>
+          <span class="prod-sku">{{ p.sku }}</span>
+        </div>
+        <span class="prod-price">{{ formatPrice(p.unitPriceWithTaxes) }}</span>
+        <button class="prod-add" (click)="$event.stopPropagation(); agregarAlCarrito(p)">+</button>
+      </div>
+    </div>
+
+    <!-- Carrito -->
+    <div *ngIf="carritoItems.length > 0" class="carrito">
+      <div class="carrito-title">🛍 Carrito ({{ carritoItems.length }})</div>
+      <div *ngFor="let item of carritoItems" class="carrito-row">
+        <span class="carrito-name">{{ item.product.name }}</span>
+        <div class="carrito-qty-ctrl">
+          <button class="qty-btn" (click)="cambiarCantidad(item.product.sku, -1)">−</button>
+          <span class="qty-val">{{ item.qty }}</span>
+          <button class="qty-btn" (click)="cambiarCantidad(item.product.sku, 1)">+</button>
+        </div>
+        <span class="carrito-total">{{ formatPrice(item.product.unitPriceWithTaxes * item.qty) }}</span>
+        <button class="carrito-del" (click)="quitarDelCarrito(item.product.sku)">✕</button>
+      </div>
+      <div class="carrito-footer">
+        <span>Total</span>
+        <span class="carrito-gran-total">{{ formatPrice(pedidoTotal) }}</span>
+      </div>
+    </div>
+
+    <!-- Notas -->
+    <div class="form-group" style="margin-top:12px">
+      <label>Notas del pedido</label>
+      <textarea [(ngModel)]="pedidoNotes" placeholder="Observaciones opcionales..." class="form-input form-textarea"></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-cancel" (click)="closePedidoForm()">Cancelar</button>
+      <button class="btn-save" (click)="savePedido()"
+              [disabled]="carritoItems.length === 0 || savingPedido">
+        {{ savingPedido ? 'Guardando...' : 'Guardar Pedido' }}
+      </button>
+    </div>
+  </div>
+</div>

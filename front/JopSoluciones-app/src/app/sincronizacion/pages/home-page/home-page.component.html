@@ -1,0 +1,1408 @@
+<div class="app-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="https://jopsoluciones.cl/wp-content/uploads/2023/08/JopConLetras-768x304-1.png" alt="JOP" class="sidebar-logo">
+      <span class="sidebar-title">Panel JOP</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <!-- Sección Sincronizador -->
+      <div class="nav-section">
+        <button class="nav-section-header" (click)="toggleSection('sync')" [class.active]="openSection === 'sync'">
+          <span class="nav-icon">⚙️</span>
+          <span>Sincronizador</span>
+          <span class="chevron" [class.open]="openSection === 'sync'">▾</span>
+        </button>
+        <div class="nav-section-body" [class.expanded]="openSection === 'sync'">
+          <button class="nav-item" [class.selected]="activeView === 'sync'" (click)="setView('sync')">
+            🔄 Panel de Sync
+          </button>
+          <button class="nav-item" [class.selected]="activeView === 'stock-manual'" (click)="setView('stock-manual')">
+            📦 Stock Manual
+          </button>
+          <button class="nav-item" [class.selected]="activeView === 'sync-productos'" (click)="setView('sync-productos'); loadSyncProductos()">
+            🧾 Productos
+          </button>
+          <button class="nav-item" [class.selected]="activeView === 'categorias-web'" (click)="setView('categorias-web')">
+            🏷️ Categorías
+          </button>
+          <button class="nav-item" [class.selected]="activeView === 'orders'" (click)="setView('orders')">
+            📋 Pedidos WC
+          </button>
+        </div>
+      </div>
+
+      <!-- Sección Imágenes -->
+      <div class="nav-section">
+        <button class="nav-section-header" (click)="toggleSection('images')" [class.active]="openSection === 'images'">
+          <span class="nav-icon">🖼️</span>
+          <span>Imágenes</span>
+          <span class="chevron" [class.open]="openSection === 'images'">▾</span>
+        </button>
+        <div class="nav-section-body" [class.expanded]="openSection === 'images'">
+          <button class="nav-item" [class.selected]="activeView === 'images'" (click)="setView('images')">
+            📁 Galería
+          </button>
+        </div>
+      </div>
+
+      <!-- Sección Prospectos — solo admin -->
+      <div class="nav-section" *ngIf="auth.isAdmin()">
+        <button class="nav-section-header" (click)="toggleSection('prospectos')" [class.active]="openSection === 'prospectos'">
+          <span class="nav-icon">📍</span>
+          <span>Prospectos</span>
+          <span class="chevron" [class.open]="openSection === 'prospectos'">▾</span>
+        </button>
+        <div class="nav-section-body" [class.expanded]="openSection === 'prospectos'">
+          <button class="nav-item" [class.selected]="activeView === 'mapa'" (click)="setView('mapa')">
+            🗺️ Mapa
+          </button>
+          <button class="nav-item" [class.selected]="activeView === 'clientes'" (click)="setView('clientes')">
+            👥 Clientes
+          </button>
+          <button class="nav-item" [class.selected]="activeView === 'categorias'" (click)="setView('categorias')">
+            🏷️ Categorías
+          </button>
+          <button class="nav-item" [class.selected]="activeView === 'productos-apk'" (click)="setView('productos-apk')">
+            📱 Productos APK
+          </button>
+          <button class="nav-item" [class.selected]="activeView === 'pedidos-internos'" (click)="setView('pedidos-internos')">
+            🧾 Pedidos App
+          </button>
+        </div>
+      </div>
+
+      <!-- Sección Testing — solo admin -->
+      <div class="nav-section" *ngIf="auth.isAdmin()">
+        <button class="nav-section-header" (click)="toggleSection('test')" [class.active]="openSection === 'test'">
+          <span class="nav-icon">🧪</span>
+          <span>Testing</span>
+          <span class="chevron" [class.open]="openSection === 'test'">▾</span>
+        </button>
+        <div class="nav-section-body" [class.expanded]="openSection === 'test'">
+          <button class="nav-item" [class.selected]="activeView === 'testing'" (click)="setView('testing')">
+            📡 Endpoints
+          </button>
+        </div>
+      </div>
+      <!-- Sección Falabella Marketplace — solo admin -->
+      <div class="nav-section" *ngIf="auth.isAdmin()">
+        <button class="nav-section-header" (click)="toggleSection('falabella')" [class.active]="openSection === 'falabella'">
+          <span class="nav-icon">🛍️</span>
+          <span>Falabella Marketplace</span>
+          <span class="chevron" [class.open]="openSection === 'falabella'">▾</span>
+        </button>
+        <div class="nav-section-body" [class.expanded]="openSection === 'falabella'">
+          <button class="nav-item" [class.selected]="activeView === 'falabella'" (click)="setView('falabella')">
+            📡 Endpoints
+          </button>
+          <button class="nav-item" [class.selected]="activeView === 'falabella-productos'" (click)="setView('falabella-productos'); loadFalabellaProductos()">
+            📦 Productos
+          </button>
+        </div>
+      </div>
+
+      <!-- Sección Config Laudus — solo admin -->
+      <div class="nav-section" *ngIf="auth.isAdmin()">
+        <button class="nav-section-header" (click)="toggleSection('laudus')" [class.active]="openSection === 'laudus'">
+          <span class="nav-icon">🏭</span>
+          <span>Config Laudus</span>
+          <span class="chevron" [class.open]="openSection === 'laudus'">▾</span>
+        </button>
+        <div class="nav-section-body" [class.expanded]="openSection === 'laudus'">
+          <button class="nav-item" [class.selected]="activeView === 'laudus-config'" (click)="setView('laudus-config'); loadLaudusCustomFields()">
+            🧩 Custom Fields
+          </button>
+        </div>
+      </div>
+
+      <!-- Configuración -->
+      <div class="nav-section">
+        <button class="nav-section-header" (click)="toggleSection('config')" [class.active]="openSection === 'config'">
+          <span class="nav-icon">⚙️</span>
+          <span>Configuración</span>
+          <span class="chevron" [class.open]="openSection === 'config'">▾</span>
+        </button>
+        <div class="nav-section-body" [class.expanded]="openSection === 'config'">
+          <button class="nav-item" [class.selected]="activeView === 'config'" (click)="setView('config')">
+            🔑 Claves API
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <span class="user-avatar">{{ auth.getUser()?.username?.charAt(0)?.toUpperCase() }}</span>
+        <div>
+          <span class="user-name">{{ auth.getUser()?.username }}</span>
+          <span class="user-role">{{ auth.isAdmin() ? 'Admin' : 'Usuario' }}</span>
+        </div>
+      </div>
+      <button class="logout-btn" (click)="auth.logout()" title="Cerrar sesión">⏻</button>
+    </div>
+  </aside>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="main-content">
+
+    <!-- ====== VISTA: SINCRONIZADOR ====== -->
+    <div *ngIf="activeView === 'sync'" class="view-container sync-layout">
+
+      <!-- Consola arriba -->
+      <div class="console-card console-grow">
+        <div class="console-header">
+          <h3 class="card-title">📟 Consola</h3>
+          <div class="console-status">
+            <span class="status-dot" [class.loading]="loadingConsole" [class.idle]="!loadingConsole"></span>
+            <span>{{ loadingConsole ? 'Procesando...' : 'En espera' }}</span>
+            <button class="clear-btn" (click)="clearConsole()">Limpiar</button>
+          </div>
+        </div>
+        <div class="console-body console-body-grow">
+          <div class="console-loading" *ngIf="loadingConsole">
+            <div class="pulse-dots"><span></span><span></span><span></span></div>
+            <span>Procesando...</span>
+          </div>
+          <div class="console-lines" *ngIf="response">
+            <div *ngFor="let line of consoleLines" class="console-line" [ngClass]="lineClass(line)">
+              <span class="line-bar"></span>
+              <span class="line-text">{{ line }}</span>
+            </div>
+          </div>
+          <div class="console-empty" *ngIf="!response && !loadingConsole">
+            Sin actividad. Ejecuta una acción para ver resultados.
+          </div>
+        </div>
+      </div>
+
+      <!-- Botones abajo -->
+      <div class="sync-actions">
+        <button class="sync-btn sync-primary" (click)="updateStock()" [disabled]="loadingButtons">
+          <span>📦</span> Actualizar Stock
+          <span class="btn-spinner" *ngIf="loadingButtons">⏳</span>
+        </button>
+
+        <button class="sync-btn sync-secondary" (click)="askImages()" [disabled]="loadingButtons">
+          <span>🔄</span> Sincronizar Productos
+          <span class="btn-spinner" *ngIf="loadingButtons">⏳</span>
+        </button>
+
+        <button class="sync-btn sync-secondary" (click)="startSynchroCategories()" [disabled]="loadingButtons">
+          <span>🗂️</span> Sincronizar Categorías
+          <span class="btn-spinner" *ngIf="loadingButtons">⏳</span>
+        </button>
+      </div>
+
+      <!-- Auto-sync card -->
+      <div class="auto-sync-card">
+        <div class="auto-sync-header">
+          <span class="card-title">⏱️ Sync Automático de Stock</span>
+          <label class="toggle-switch">
+            <input type="checkbox" [checked]="syncAutoStatus?.enabled" (change)="toggleAutoSync($any($event.target).checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="auto-sync-body">
+          <div class="auto-sync-row">
+            <span class="auto-sync-label">Intervalo</span>
+            <div class="auto-sync-interval">
+              <input class="warehouse-input" type="number" min="5" max="1440"
+                [(ngModel)]="syncAutoInterval" [disabled]="syncAutoStatus?.enabled"
+                style="width:70px;text-align:center">
+              <span style="color:#8eaacc;font-size:12px">minutos</span>
+            </div>
+          </div>
+          <div class="auto-sync-row" *ngIf="syncAutoStatus?.lastRun">
+            <span class="auto-sync-label">Última ejecución</span>
+            <span class="auto-sync-value">{{ syncAutoStatus?.lastRun }}</span>
+          </div>
+          <div class="auto-sync-row" *ngIf="syncAutoStatus?.nextRun">
+            <span class="auto-sync-label">Próxima ejecución</span>
+            <span class="auto-sync-value" style="color:#7eb3ff">{{ syncAutoStatus?.nextRun }}</span>
+          </div>
+          <div class="auto-sync-row" *ngIf="!syncAutoStatus?.enabled">
+            <span style="color:#5a7aaa;font-size:12px">Activa el toggle para iniciar el sync automático</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VISTA: PEDIDOS ====== -->
+    <div *ngIf="activeView === 'orders'" class="view-container orders-container">
+      <div class="view-header">
+        <h1 class="view-title">📋 Pedidos</h1>
+        <span class="view-subtitle">
+          {{ filteredOrders.length }} de {{ orders.length }} pedidos
+        </span>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filters-card">
+        <div class="filters-header">
+          <span class="card-title" style="margin:0">Filtrar por estado</span>
+          <button class="refresh-btn" (click)="loadOrders()" [disabled]="loadingOrders">
+            {{ loadingOrders ? '⏳' : '🔄' }} Actualizar
+          </button>
+        </div>
+        <div class="filter-chips">
+          <label *ngFor="let key of orderStatusKeys()" class="filter-chip"
+                 [style.--chip-color]="statusInfo(key).color"
+                 [class.chip-active]="orderFilters[key]">
+            <input type="checkbox" [(ngModel)]="orderFilters[key]" hidden>
+            <span class="chip-dot"></span>
+            <span class="chip-label">{{ statusInfo(key).label }}</span>
+            <span class="chip-count">{{ countByStatus(key) }}</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="loadingOrders" class="orders-loading">
+        <div class="pulse-dots"><span></span><span></span><span></span></div>
+        <span>Cargando pedidos...</span>
+      </div>
+
+      <!-- Tabla de pedidos -->
+      <div *ngIf="!loadingOrders && filteredOrders.length > 0" class="orders-list">
+        <div *ngFor="let order of filteredOrders" class="order-row" (click)="toggleOrder(order.id)">
+          <div class="order-row-main">
+            <div class="order-id">#{{ order.number || order.id }}</div>
+            <div class="order-customer">
+              {{ order.billing?.first_name }} {{ order.billing?.last_name }}
+              <span class="order-email">{{ order.billing?.email }}</span>
+            </div>
+            <div class="order-items-count">
+              {{ order.line_items?.length || 0 }} producto{{ (order.line_items?.length || 0) !== 1 ? 's' : '' }}
+            </div>
+            <div class="order-date">{{ order.date_created | date:'dd/MM/yyyy HH:mm' }}</div>
+            <div class="order-total">${{ order.total }} <span class="order-currency">{{ order.currency }}</span></div>
+            <div class="order-status-badge" [style.background]="statusInfo(order.status).color + '22'" [style.color]="statusInfo(order.status).color">
+              {{ statusInfo(order.status).label }}
+            </div>
+            <span class="order-chevron" [class.open]="expandedOrderId === order.id">▾</span>
+          </div>
+
+          <!-- Detalle expandible -->
+          <div class="order-detail" *ngIf="expandedOrderId === order.id" (click)="$event.stopPropagation()">
+            <div class="detail-grid">
+              <div class="detail-section">
+                <div class="detail-title">Datos de envío</div>
+                <div class="detail-row"><span>Teléfono</span><span>{{ order.billing?.phone || '—' }}</span></div>
+                <div class="detail-row"><span>Dirección</span><span>{{ order.billing?.address_1 || '—' }}</span></div>
+                <div class="detail-row"><span>Ciudad</span><span>{{ order.billing?.city || '—' }}</span></div>
+                <div class="detail-row" *ngIf="order.customer_note"><span>Nota</span><span>{{ order.customer_note }}</span></div>
+              </div>
+              <div class="detail-section">
+                <div class="detail-title">Productos ({{ order.line_items?.length || 0 }})</div>
+                <div class="line-item" *ngFor="let item of order.line_items">
+                  <span class="item-qty">×{{ item.quantity }}</span>
+                  <span class="item-name">{{ item.name }}</span>
+                  <span class="item-sku" *ngIf="item.sku">{{ item.sku }}</span>
+                  <span class="item-total">${{ item.total }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="!loadingOrders && filteredOrders.length === 0 && orders.length > 0" class="console-empty">
+        No hay pedidos que coincidan con los filtros seleccionados.
+      </div>
+      <div *ngIf="!loadingOrders && orders.length === 0" class="console-empty">
+        Sin pedidos cargados. Haz clic en "Actualizar" para obtenerlos.
+      </div>
+    </div>
+
+    <!-- ====== VISTA: IMÁGENES ====== -->
+    <div *ngIf="activeView === 'images'" class="view-container">
+
+      <!-- ══════════════ VISTA: LISTADO DE CARPETAS ══════════════ -->
+      <ng-container *ngIf="!selectedFolder">
+
+        <!-- Header -->
+        <div class="view-header" style="margin-bottom:10px">
+          <div>
+            <h1 class="view-title">🗂️ Imágenes</h1>
+            <span class="view-subtitle">{{ totalImages() }} imágenes · {{ imageFolders.length }} carpetas</span>
+          </div>
+          <button class="refresh-btn" (click)="loadImages()" [disabled]="loadingImages">
+            {{ loadingImages ? '⏳' : '🔄' }}
+          </button>
+        </div>
+
+        <!-- Crear carpeta nueva -->
+        <div class="fl-create-bar">
+          <input class="fl-search" [(ngModel)]="newFolderName" placeholder="Nombre de la nueva carpeta..."
+            style="flex:1" (keydown.enter)="createFolder()">
+          <button class="fl-create-btn" (click)="createFolder()" [disabled]="!newFolderName.trim() || creatingFolder">
+            {{ creatingFolder ? '⏳' : '➕ Crear carpeta' }}
+          </button>
+          <button class="fl-suggest-btn" (click)="loadSuggestedFolders()" title="Ver SKUs de productos sin carpeta">
+            💡 Sugeridas
+          </button>
+        </div>
+
+        <!-- Panel carpetas sugeridas -->
+        <div *ngIf="showSuggested" class="fl-suggested-panel">
+          <div class="fl-suggested-header">
+            <span class="fl-suggested-title">💡 Carpetas sugeridas (SKUs sin carpeta)</span>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input class="fl-search" [(ngModel)]="suggestedSearch" placeholder="Filtrar..." style="width:160px">
+              <span class="fl-suggested-count">{{ filteredSuggested().length }}</span>
+              <button class="fl-create-btn" (click)="createAllSuggested()" [disabled]="!filteredSuggested().length" style="font-size:12px">
+                ➕ Crear todas
+              </button>
+              <button class="fl-sort-btn" (click)="showSuggested=false">✕</button>
+            </div>
+          </div>
+          <div *ngIf="loadingSuggested" class="orders-loading" style="padding:12px">
+            <div class="pulse-dots"><span></span><span></span><span></span></div>
+          </div>
+          <div *ngIf="!loadingSuggested" class="fl-suggested-list">
+            <span *ngFor="let sku of filteredSuggested()" class="fl-suggested-chip">
+              {{ sku }}
+              <button class="fl-chip-add" (click)="createFolderFromSuggestion(sku)" title="Crear carpeta">+</button>
+            </span>
+            <span *ngIf="filteredSuggested().length === 0" style="color:#aaa;font-size:13px">
+              {{ suggestedFolders.length === 0 ? 'Todos los productos ya tienen carpeta ✅' : 'Sin resultados' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Barra búsqueda + orden -->
+        <div class="fl-bar">
+          <input class="fl-search" [(ngModel)]="imageSearch" placeholder="🔍 Buscar carpeta...">
+          <div class="fl-sort-group">
+            <button class="fl-sort-btn" [class.active]="folderSort === 'name'" (click)="setSortFolder('name')">
+              Nombre {{ folderSort === 'name' ? (folderSortAsc ? '↑' : '↓') : '' }}
+            </button>
+            <button class="fl-sort-btn" [class.active]="folderSort === 'count'" (click)="setSortFolder('count')">
+              Cantidad {{ folderSort === 'count' ? (folderSortAsc ? '↑' : '↓') : '' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div *ngIf="loadingImages" class="orders-loading">
+          <div class="pulse-dots"><span></span><span></span><span></span></div>
+          <span>Cargando...</span>
+        </div>
+
+        <!-- Tabla compacta de carpetas -->
+        <div *ngIf="!loadingImages" class="fl-table-wrap">
+          <table class="fl-table">
+            <thead>
+              <tr>
+                <th class="fl-th fl-th-folder">Carpeta</th>
+                <th class="fl-th fl-th-count">Imágenes</th>
+                <th class="fl-th fl-th-bar">Distribución</th>
+                <th class="fl-th fl-th-action"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let f of pagedFolders()" class="fl-row" (click)="openFolder(f)">
+                <td class="fl-td fl-td-name">
+                  <span class="fl-folder-icon">📁</span>
+                  <span class="fl-folder-label">{{ f.folder }}</span>
+                </td>
+                <td class="fl-td fl-td-count">
+                  <span class="fl-badge" [class.fl-badge-0]="(f.images?.length??0)===0">{{ f.images?.length ?? 0 }}</span>
+                </td>
+                <td class="fl-td fl-td-bar">
+                  <div class="fl-bar-track">
+                    <div class="fl-bar-fill" [style.width]="folderBarPct(f) + '%'"></div>
+                  </div>
+                </td>
+                <td class="fl-td fl-td-action">
+                  <button class="fl-open-btn" (click)="openFolder(f); $event.stopPropagation()">Abrir →</button>
+                  <button class="fl-del-folder-btn" (click)="deleteFolder(f, $event)" title="Eliminar carpeta">🗑️</button>
+                </td>
+              </tr>
+              <tr *ngIf="pagedFolders().length === 0">
+                <td colspan="4" class="fl-empty">No se encontraron carpetas{{ imageSearch ? ' para "'+imageSearch+'"' : '' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Paginación -->
+        <div *ngIf="totalFolderPages() > 1" class="fl-pagination">
+          <button class="fl-page-btn" [disabled]="folderPage === 0" (click)="folderPage = folderPage - 1">‹</button>
+          <span class="fl-page-info">{{ folderPage + 1 }} / {{ totalFolderPages() }}</span>
+          <button class="fl-page-btn" [disabled]="folderPage >= totalFolderPages() - 1" (click)="folderPage = folderPage + 1">›</button>
+        </div>
+
+      </ng-container>
+
+      <!-- ══════════════ VISTA: DETALLE DE CARPETA ══════════════ -->
+      <ng-container *ngIf="selectedFolder">
+
+        <!-- Header detalle -->
+        <div class="fd-header">
+          <button class="fd-back-btn" (click)="closeFolder()">← Volver</button>
+          <div class="fd-title-block">
+            <span class="fd-folder-icon">📁</span>
+            <span class="fd-folder-name">{{ selectedFolder.folder }}</span>
+            <span class="fd-count-badge">{{ selectedFolder.images?.length ?? 0 }} imágenes</span>
+          </div>
+          <div class="fd-actions">
+            <!-- Subir imagen -->
+            <label class="upload-btn">
+              ➕ Subir
+              <input type="file" accept="image/*" multiple hidden (change)="onFileSelectedDetail($event)">
+            </label>
+            <!-- Eliminar selección -->
+            <button class="fd-bulk-delete-btn" *ngIf="selectedImages.size > 0" (click)="bulkDeleteImages()">
+              🗑️ Eliminar ({{ selectedImages.size }})
+            </button>
+            <button class="fd-select-all-btn" *ngIf="(selectedFolder.images?.length??0) > 0" (click)="toggleSelectAll()">
+              {{ selectedImages.size === (selectedFolder.images?.length??0) ? 'Deseleccionar todo' : 'Seleccionar todo' }}
+            </button>
+            <!-- Eliminar carpeta -->
+            <button class="fd-delete-folder-btn" (click)="deleteFolder(selectedFolder); closeFolder()">
+              🗑️ Eliminar carpeta
+            </button>
+          </div>
+        </div>
+
+        <!-- Upload pendiente múltiple -->
+        <div *ngIf="pendingFiles.length > 0" class="upload-panel fd-upload-panel">
+          <span class="upload-filename">📎 {{ pendingFiles.length }} archivo{{ pendingFiles.length !== 1 ? 's' : '' }} pendiente{{ pendingFiles.length !== 1 ? 's' : '' }}</span>
+          <button class="settings-save-btn" (click)="uploadFilesToFolder()">Subir a {{ selectedFolder.folder }}</button>
+          <button class="clear-btn" (click)="pendingFiles = []">✕</button>
+        </div>
+
+        <!-- Barra búsqueda detalle -->
+        <div class="fd-search-bar">
+          <input class="fl-search" [(ngModel)]="detailSearch" placeholder="🔍 Buscar imagen...">
+          <span class="fd-total">{{ filteredDetailImages().length }} resultado{{ filteredDetailImages().length !== 1 ? 's' : '' }}</span>
+        </div>
+
+        <!-- Grid imágenes -->
+        <div class="fd-grid">
+          <div *ngFor="let img of filteredDetailImages()" class="fd-img-card" [class.fd-selected]="selectedImages.has(img.url)" (click)="toggleImgSelect(img)">
+            <div class="fd-img-check" *ngIf="selectedImages.has(img.url)">✓</div>
+            <div class="fd-img-preview" (click)="previewImage = img; $event.stopPropagation()">
+              <img [src]="imgUrl(img.url)" [alt]="img.name" class="fd-thumb" loading="lazy">
+            </div>
+            <div class="fd-img-info">
+              <span class="fd-img-name" [title]="img.name">{{ img.name }}</span>
+              <span class="fd-img-size">{{ formatSize(img.size) }}</span>
+            </div>
+            <div class="fd-img-btns" (click)="$event.stopPropagation()">
+              <button class="fd-btn-del" (click)="deleteImage(img)" title="Eliminar">🗑️</button>
+            </div>
+          </div>
+          <div *ngIf="filteredDetailImages().length === 0" class="console-empty" style="grid-column:1/-1">
+            Sin imágenes{{ detailSearch ? ' para "'+detailSearch+'"' : '' }}.
+          </div>
+        </div>
+
+      </ng-container>
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox" *ngIf="previewImage" (click)="previewImage = null">
+      <img [src]="imgUrl(previewImage.url)" [alt]="previewImage.name" class="lightbox-img" (click)="$event.stopPropagation()">
+      <div class="lightbox-name">{{ previewImage.name }}</div>
+      <button class="lightbox-close" (click)="previewImage = null">✕</button>
+    </div>
+
+    <!-- ====== VISTA: PEDIDOS INTERNOS ====== -->
+    <div *ngIf="activeView === 'pedidos-internos'" class="view-container pi-layout">
+
+      <!-- ── Panel izquierdo: lista ── -->
+      <div class="pi-list-panel">
+        <div class="view-header" style="margin-bottom:10px">
+          <div>
+            <h1 class="view-title">🧾 Pedidos App</h1>
+            <span class="view-subtitle">{{ pedidosInternos.length }} pedidos</span>
+          </div>
+          <button class="refresh-btn" (click)="loadPedidosInternos()" [disabled]="loadingPedidos">
+            {{ loadingPedidos ? '⏳' : '🔄' }}
+          </button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="fl-bar" style="margin-bottom:10px;flex-wrap:wrap">
+          <button class="fl-sort-btn" [class.active]="pedidoStatusFilter===''" (click)="pedidoStatusFilter=''">Todos</button>
+          <button class="fl-sort-btn" [class.active]="pedidoStatusFilter==='pending'" (click)="pedidoStatusFilter='pending'">Pendiente</button>
+          <button class="fl-sort-btn" [class.active]="pedidoStatusFilter==='confirmed'" (click)="pedidoStatusFilter='confirmed'">Confirmado</button>
+          <button class="fl-sort-btn" [class.active]="pedidoStatusFilter==='cancelled'" (click)="pedidoStatusFilter='cancelled'">Cancelado</button>
+        </div>
+
+        <div *ngIf="loadingPedidos" class="orders-loading">
+          <div class="pulse-dots"><span></span><span></span><span></span></div>
+        </div>
+
+        <!-- Lista cards -->
+        <div *ngIf="!loadingPedidos" class="pi-cards">
+          <div *ngFor="let p of filteredPedidosInternos()"
+               class="pi-card"
+               [class.pi-card-selected]="selectedPedido?.uuid === p.uuid"
+               (click)="selectedPedido = p">
+            <div class="pi-card-top">
+              <span class="pi-card-client">{{ p.clienteName }}</span>
+              <span class="pi-status-dot" [style.background]="pedidoStatusColor(p.status)"></span>
+            </div>
+            <div class="pi-card-mid">
+              <span class="pi-card-items">{{ parsePedidoItems(p.items).length }} producto{{ parsePedidoItems(p.items).length !== 1 ? 's' : '' }}</span>
+              <span class="pi-card-total">${{ p.total | number:'1.0-0' }}</span>
+            </div>
+            <div class="pi-card-bot">
+              <span class="pi-card-id">{{ p.uuid.substring(0,8).toUpperCase() }}</span>
+              <span class="pi-card-date">{{ p.createdAt | date:'dd/MM/yy HH:mm' }}</span>
+            </div>
+          </div>
+          <div *ngIf="filteredPedidosInternos().length === 0" class="fl-empty">
+            Sin pedidos{{ pedidoStatusFilter ? ' con estado "'+pedidoStatusFilter+'"' : '' }}
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Panel derecho: detalle ── -->
+      <div class="pi-detail-panel" *ngIf="selectedPedido; else piEmpty">
+        <!-- Header detalle -->
+        <div class="pi-detail-header">
+          <div class="pi-detail-title">
+            <span class="pi-detail-client">{{ selectedPedido.clienteName }}</span>
+            <span class="pi-detail-badge" [style.background]="pedidoStatusColor(selectedPedido.status)">
+              {{ pedidoStatusLabel(selectedPedido.status) }}
+            </span>
+          </div>
+          <div class="pi-detail-meta">
+            <span>ID: <b>{{ selectedPedido.uuid.substring(0,8).toUpperCase() }}</b></span>
+            <span>{{ selectedPedido.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+        </div>
+
+        <!-- Cambiar estado -->
+        <div class="pi-status-bar">
+          <span style="font-size:12px;color:#8eaacc">Cambiar estado:</span>
+          <button class="pi-status-btn" [class.pi-status-active]="selectedPedido.status==='pending'"
+            (click)="changePedidoStatus(selectedPedido, 'pending')">⏳ Pendiente</button>
+          <button class="pi-status-btn pi-status-ok" [class.pi-status-active]="selectedPedido.status==='confirmed'"
+            (click)="changePedidoStatus(selectedPedido, 'confirmed')">✅ Confirmado</button>
+          <button class="pi-status-btn pi-status-cancel" [class.pi-status-active]="selectedPedido.status==='cancelled'"
+            (click)="changePedidoStatus(selectedPedido, 'cancelled')">❌ Cancelado</button>
+        </div>
+
+        <!-- Tabla de productos -->
+        <div class="pi-items-wrap">
+          <table class="pi-items-table">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Producto</th>
+                <th style="text-align:center">Cant.</th>
+                <th style="text-align:right">Precio unit.</th>
+                <th style="text-align:right">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of parsePedidoItems(selectedPedido.items)">
+                <td class="pi-sku">{{ item.sku }}</td>
+                <td class="pi-item-name">{{ item.name }}</td>
+                <td style="text-align:center;font-weight:700;color:#c8d8f0">{{ item.qty }}</td>
+                <td style="text-align:right;color:#8eaacc">${{ item.unitPrice | number:'1.0-0' }}</td>
+                <td style="text-align:right;font-weight:600;color:#7eb3ff">${{ item.total | number:'1.0-0' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Totales -->
+        <div class="pi-totals">
+          <div class="pi-total-row">
+            <span>Subtotal</span>
+            <span>${{ selectedPedido.subtotal | number:'1.0-0' }}</span>
+          </div>
+          <div class="pi-total-row pi-total-final">
+            <span>Total</span>
+            <span>${{ selectedPedido.total | number:'1.0-0' }}</span>
+          </div>
+        </div>
+
+        <!-- Notas -->
+        <div *ngIf="selectedPedido.notes" class="pi-notes">
+          <span class="pi-notes-label">Notas:</span>
+          <span>{{ selectedPedido.notes }}</span>
+        </div>
+
+        <!-- Eliminar -->
+        <div style="margin-top:16px;text-align:right">
+          <button class="fd-delete-folder-btn" (click)="deletePedido(selectedPedido)">🗑️ Eliminar pedido</button>
+        </div>
+      </div>
+
+      <ng-template #piEmpty>
+        <div class="pi-detail-panel pi-detail-empty">
+          <span>← Selecciona un pedido para ver el detalle</span>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- ====== VISTA: MAPA ====== -->
+    <div *ngIf="activeView === 'mapa'" class="view-container view-container-mapa" style="padding:0;display:flex;flex-direction:column;">
+      <app-mapa></app-mapa>
+    </div>
+
+    <!-- ====== VISTA: CLIENTES ====== -->
+    <div *ngIf="activeView === 'clientes'" class="view-container" style="padding:0;overflow:hidden;display:flex;flex-direction:column;">
+      <app-clientes></app-clientes>
+    </div>
+
+    <!-- ====== VISTA: CATEGORÍAS ====== -->
+    <div *ngIf="activeView === 'categorias'" class="view-container" style="padding:0;overflow:hidden;display:flex;flex-direction:column;">
+      <app-categorias></app-categorias>
+    </div>
+
+    <!-- ====== VISTA: PRODUCTOS APK ====== -->
+    <div *ngIf="activeView === 'productos-apk'" class="view-container" style="padding:0;overflow:hidden;display:flex;flex-direction:column;">
+      <app-productos-apk></app-productos-apk>
+    </div>
+
+    <!-- ====== VISTA: STOCK MANUAL ====== -->
+    <div *ngIf="activeView === 'stock-manual'" class="view-container" style="padding:0;overflow:hidden;display:flex;flex-direction:column;">
+      <app-stock-manual></app-stock-manual>
+    </div>
+
+    <!-- ====== VISTA: SYNC PRODUCTOS (estado + preview WooCommerce) ====== -->
+    <div *ngIf="activeView === 'sync-productos'" class="view-container">
+      <div class="view-header">
+        <h1 class="view-title">🧾 Productos → WooCommerce</h1>
+        <span class="view-subtitle">{{ filteredSyncProductos.length }} de {{ syncProductos.length }} productos</span>
+      </div>
+
+      <div class="filters-card">
+        <div class="filters-header">
+          <span class="card-title" style="margin:0">Buscar</span>
+          <button class="refresh-btn" (click)="loadSyncProductos()" [disabled]="syncProductosLoading">
+            {{ syncProductosLoading ? '⏳' : '🔄' }} Actualizar
+          </button>
+        </div>
+        <input class="config-input" style="width:100%" [(ngModel)]="syncProductosSearch" placeholder="Buscar por SKU, nombre o categoría...">
+      </div>
+
+      <div *ngIf="syncProductosLoading" class="orders-loading">
+        <div class="pulse-dots"><span></span><span></span><span></span></div>
+        <span>Cargando catálogo...</span>
+      </div>
+      <div *ngIf="syncProductosError && !syncProductosLoading" class="console-empty">⚠️ {{ syncProductosError }}</div>
+
+      <div *ngIf="!syncProductosLoading && !syncProductosError" class="mat-table-card">
+        <table mat-table [dataSource]="filteredSyncProductos" class="jop-mat-table">
+          <ng-container matColumnDef="estado">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let p">
+              <span class="fp-dot" [class.fp-dot-green]="p.enWooCommerce" [class.fp-dot-red]="!p.enWooCommerce"></span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="sku">
+            <th mat-header-cell *matHeaderCellDef>SKU</th>
+            <td mat-cell *matCellDef="let p" class="fp-sku">{{ p.sku }}</td>
+          </ng-container>
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Nombre</th>
+            <td mat-cell *matCellDef="let p" class="jop-cell-truncate">{{ p.name }}</td>
+          </ng-container>
+          <ng-container matColumnDef="price">
+            <th mat-header-cell *matHeaderCellDef>Precio</th>
+            <td mat-cell *matCellDef="let p">${{ p.price }}</td>
+          </ng-container>
+          <ng-container matColumnDef="stock">
+            <th mat-header-cell *matHeaderCellDef>Stock</th>
+            <td mat-cell *matCellDef="let p">{{ p.stock }}</td>
+          </ng-container>
+          <ng-container matColumnDef="categoryName">
+            <th mat-header-cell *matHeaderCellDef>Categoría</th>
+            <td mat-cell *matCellDef="let p">{{ p.categoryName || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="acciones">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let p">
+              <button mat-flat-button [color]="p.enWooCommerce ? '' : 'primary'"
+                      [class.fp-btn-en-falabella]="p.enWooCommerce"
+                      [matTooltip]="p.enWooCommerce ? 'Ya está en WooCommerce' : 'No está en WooCommerce'"
+                      (click)="openSyncProducto(p)">
+                {{ p.enWooCommerce ? '✓ En WooCommerce' : 'Sincronizar' }}
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="syncProductosColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: syncProductosColumns;"></tr>
+        </table>
+        <div *ngIf="filteredSyncProductos.length === 0" class="console-empty">Sin resultados.</div>
+      </div>
+    </div>
+
+    <!-- ====== MODAL: Producto → WooCommerce (solo lectura + sincronizar) ====== -->
+    <div class="modal-overlay" *ngIf="syncSelected">
+      <div class="modal-box fp-modal-box" (click)="$event.stopPropagation()">
+        <div class="fp-modal-inner">
+          <div class="fp-modal-header">
+            <span class="modal-title">🧾 {{ syncSelected.sku }} — {{ syncSelected.name }}</span>
+            <button class="fp-close-btn" (click)="closeSyncProducto()">← Devolver</button>
+          </div>
+          <div class="modal-body">
+            ${{ syncSelected.price }} · {{ syncSelected.stock }} en stock · {{ syncSelected.categoryName || 'Sin categoría' }}
+            <span class="fp-estado-badge" [class.fp-estado-si]="syncSelected.enWooCommerce" [class.fp-estado-no]="!syncSelected.enWooCommerce">
+              <span class="fp-dot" [class.fp-dot-green]="syncSelected.enWooCommerce" [class.fp-dot-red]="!syncSelected.enWooCommerce"></span>
+              {{ syncSelected.enWooCommerce ? 'Ya está en WooCommerce' : 'No está en WooCommerce todavía' }}
+            </span>
+          </div>
+
+          <div class="fp-form-grid">
+            <!-- Lo que hay AHORA en WooCommerce -->
+            <div class="fp-card" *ngIf="syncSelected.enWooCommerce">
+              <div class="fp-card-header">🌐 Ahora en WooCommerce</div>
+              <div class="fp-card-body">
+                <div class="fp-hint" *ngIf="syncDatosWooLoading">Cargando...</div>
+                <ng-container *ngIf="!syncDatosWooLoading && syncDatosWoo?.existe">
+                  <div class="fp-field"><label class="fp-label">Nombre</label><div class="fp-selected-tag">{{ syncDatosWoo.name }}</div></div>
+                  <div class="fp-field"><label class="fp-label">Precio</label><div class="fp-selected-tag">${{ syncDatosWoo.price }}</div></div>
+                  <div class="fp-field"><label class="fp-label">Stock</label><div class="fp-selected-tag">{{ syncDatosWoo.stockQuantity }}</div></div>
+                  <div class="fp-field"><label class="fp-label">Estado</label><div class="fp-selected-tag">{{ syncDatosWoo.status }}</div></div>
+                  <div class="fp-field"><label class="fp-label">Categorías</label><div class="fp-selected-tag">{{ syncDatosWoo.categoryNames?.join(', ') || '—' }}</div></div>
+                  <div class="fp-img-list" *ngIf="syncDatosWoo.images?.length">
+                    <img *ngFor="let url of syncDatosWoo.images" [src]="url" class="fp-img-thumb" [title]="url">
+                  </div>
+                </ng-container>
+                <div class="fp-hint" *ngIf="!syncDatosWooLoading && syncDatosWoo && !syncDatosWoo.existe">No se encontró en WooCommerce (¿se borró allá?).</div>
+              </div>
+            </div>
+
+            <!-- Lo que Laudus mandaría si se sincroniza ahora -->
+            <div class="fp-card">
+              <div class="fp-card-header">📦 Se enviaría desde Laudus</div>
+              <div class="fp-card-body">
+                <div class="fp-hint" *ngIf="syncPreviewLaudusLoading">Cargando...</div>
+                <ng-container *ngIf="!syncPreviewLaudusLoading && syncPreviewLaudus">
+                  <div class="fp-field"><label class="fp-label">Nombre</label><div class="fp-selected-tag">{{ syncPreviewLaudus.name }}</div></div>
+                  <div class="fp-field"><label class="fp-label">Precio</label><div class="fp-selected-tag">${{ syncPreviewLaudus.regular_price }}</div></div>
+                  <div class="fp-field"><label class="fp-label">Stock</label><div class="fp-selected-tag">{{ syncPreviewLaudus.stock_quantity ?? '—' }}</div></div>
+                  <div class="fp-field"><label class="fp-label">Estado</label><div class="fp-selected-tag">{{ syncPreviewLaudus.status }}</div></div>
+                </ng-container>
+                <div class="fp-hint">Estos valores salen de Laudus tal cual — no son editables acá; para cambiarlos hay que editarlos en Laudus.</div>
+              </div>
+            </div>
+
+            <!-- Descripciones — lo único de este panel que de verdad se guarda directo en WooCommerce -->
+            <div class="fp-card">
+              <div class="fp-card-header">✏️ Editar (WooCommerce)</div>
+              <div class="fp-card-body">
+                <div class="fp-field">
+                  <label class="fp-label">Título</label>
+                  <input class="config-input" style="width:100%" [(ngModel)]="syncTitulo">
+                </div>
+                <div class="fp-field">
+                  <label class="fp-label">Descripción corta</label>
+                  <textarea class="config-input" rows="4" style="width:100%; resize:vertical; font-family:inherit"
+                            [(ngModel)]="syncDescripcionCorta"></textarea>
+                </div>
+                <div class="fp-field">
+                  <label class="fp-label">Descripción larga</label>
+                  <textarea class="config-input" rows="8" style="width:100%; resize:vertical; font-family:inherit"
+                            [(ngModel)]="syncDescripcionLarga"></textarea>
+                </div>
+                <div class="fp-hint" *ngIf="!syncSelected.enWooCommerce">
+                  Este producto todavía no está en WooCommerce — sincronízalo primero (botón de abajo) antes de poder guardar la descripción.
+                </div>
+                <button class="modal-btn modal-yes" (click)="guardarDescripcionWoo()" [disabled]="syncGuardandoDescripcion || !syncSelected.enWooCommerce">
+                  {{ syncGuardandoDescripcion ? '⏳ Guardando...' : '💾 Guardar descripción en WooCommerce' }}
+                </button>
+                <div class="fp-hint" *ngIf="syncDescripcionOk">✅ {{ syncDescripcionOk }}</div>
+                <pre class="fp-error" *ngIf="syncDescripcionError">{{ syncDescripcionError }}</pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="modal-btn modal-yes" (click)="sincronizarSyncProducto()" [disabled]="syncEnviando">
+              {{ syncEnviando ? '⏳ Sincronizando...' : (syncSelected.enWooCommerce ? '🔄 Sincronizar de nuevo' : '📤 Sincronizar a WooCommerce') }}
+            </button>
+          </div>
+          <div class="fp-hint" *ngIf="syncEnviarOk">✅ {{ syncEnviarOk }}</div>
+          <pre class="fp-error" *ngIf="syncEnviarError">{{ syncEnviarError }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VISTA: CATEGORÍAS WEB ====== -->
+    <div *ngIf="activeView === 'categorias-web'" class="view-container" style="padding:0;overflow:hidden;display:flex;flex-direction:column;">
+      <app-categorias-web></app-categorias-web>
+    </div>
+
+    <!-- ====== VISTA: TESTING ====== -->
+    <div *ngIf="activeView === 'testing'" class="view-container">
+      <div class="view-header">
+        <h1 class="view-title">🧪 Testing de Endpoints</h1>
+        <span class="view-subtitle">Prueba los endpoints del backend y verifica su estado</span>
+      </div>
+
+      <div class="test-grid">
+        <div class="test-card" *ngFor="let test of testEndpoints">
+          <div class="test-card-header">
+            <span class="test-method" [class]="'method-' + test.method.toLowerCase()">{{ test.method }}</span>
+            <span class="test-name">{{ test.name }}</span>
+          </div>
+          <div class="test-url">{{ test.url }}<span *ngIf="test.warehouseId !== undefined">?warehouseId={{ test.warehouseId }}</span></div>
+          <div class="test-desc">{{ test.description }}</div>
+
+          <!-- Panel de settings -->
+          <div *ngIf="test.showSettings && test.warehouseId !== undefined" class="settings-panel">
+            <div class="settings-row">
+              <label class="warehouse-label">Bodega ID</label>
+              <input class="warehouse-input" [(ngModel)]="test.warehouseId" placeholder="ej: 8" maxlength="10" (keyup.enter)="saveParam(test)">
+              <button class="settings-save-btn" (click)="saveParam(test)">Guardar</button>
+            </div>
+          </div>
+
+          <div class="test-actions">
+            <button class="test-btn" (click)="runTest(test)" [disabled]="test.loading">
+              <span *ngIf="!test.loading">▶ Ejecutar</span>
+              <span *ngIf="test.loading">⏳</span>
+            </button>
+            <button *ngIf="test.warehouseId !== undefined" class="settings-btn" (click)="test.showSettings = !test.showSettings" [class.settings-btn-active]="test.showSettings" title="Configurar parámetros">
+              ⚙️
+            </button>
+          </div>
+
+          <div class="test-result" *ngIf="test.result" [class]="'result-' + test.result.status">
+            <div class="result-header">
+              <span class="result-badge" [class]="'badge-' + test.result.status">
+                {{ test.result.status === 'success' ? '✅ OK' : test.result.status === 'error' ? '❌ Error' : '⏳ Cargando' }}
+              </span>
+              <span class="result-code" *ngIf="test.result.statusCode">HTTP {{ test.result.statusCode }}</span>
+              <span class="result-time" *ngIf="test.result.duration">{{ test.result.duration }}ms</span>
+            </div>
+            <pre class="result-body">{{ test.result.body }}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VISTA: FALABELLA MARKETPLACE ====== -->
+    <div *ngIf="activeView === 'falabella'" class="view-container">
+      <div class="view-header">
+        <h1 class="view-title">🛍️ Falabella Marketplace</h1>
+        <span class="view-subtitle">Prueba los endpoints de la API de Falabella Seller Center y verifica sus respuestas</span>
+      </div>
+
+      <div class="test-grid">
+        <div class="test-card" *ngFor="let test of falabellaEndpoints">
+          <div class="test-card-header">
+            <span class="test-method" [class]="'method-' + test.method.toLowerCase()">{{ test.method }}</span>
+            <span class="test-name">{{ test.name }}</span>
+          </div>
+          <div class="test-url">{{ test.url }}</div>
+          <div class="test-desc">{{ test.description }}</div>
+
+          <div class="test-result" [class]="test.result ? 'result-' + test.result.status : 'result-empty'">
+            <ng-container *ngIf="test.result; else noResult">
+              <div class="result-header">
+                <span class="result-badge" [class]="'badge-' + test.result.status">
+                  {{ test.result.status === 'success' ? '✅ OK' : test.result.status === 'error' ? '❌ Error' : '⏳ Cargando' }}
+                </span>
+                <span class="result-code" *ngIf="test.result.statusCode">HTTP {{ test.result.statusCode }}</span>
+                <span class="result-time" *ngIf="test.result.duration">{{ test.result.duration }}ms</span>
+              </div>
+              <pre class="result-body">{{ test.result.body }}</pre>
+            </ng-container>
+            <ng-template #noResult>
+              <pre class="result-body result-placeholder">Sin ejecutar aún — presiona "Ejecutar" para ver la respuesta.</pre>
+            </ng-template>
+          </div>
+
+          <div class="test-actions">
+            <button class="test-btn" (click)="runTest(test)" [disabled]="test.loading">
+              <span *ngIf="!test.loading">▶ Ejecutar</span>
+              <span *ngIf="test.loading">⏳</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VISTA: FALABELLA PRODUCTOS ====== -->
+    <div *ngIf="activeView === 'falabella-productos'" class="view-container">
+      <div class="view-header">
+        <h1 class="view-title">📦 Productos → Falabella</h1>
+        <span class="view-subtitle">{{ filteredFalabellaProductos.length }} de {{ falabellaProductos.length }} productos</span>
+      </div>
+
+      <div class="filters-card">
+        <div class="filters-header">
+          <span class="card-title" style="margin:0">Buscar</span>
+          <button class="refresh-btn" (click)="loadFalabellaProductos()" [disabled]="loadingFalabellaProductos">
+            {{ loadingFalabellaProductos ? '⏳' : '🔄' }} Actualizar
+          </button>
+        </div>
+        <input class="config-input" style="width:100%" [(ngModel)]="falabellaSearch" placeholder="Buscar por SKU, nombre o categoría...">
+      </div>
+
+      <div *ngIf="loadingFalabellaProductos" class="orders-loading">
+        <div class="pulse-dots"><span></span><span></span><span></span></div>
+        <span>Cargando catálogo...</span>
+      </div>
+
+      <div *ngIf="falabellaProductosError && !loadingFalabellaProductos" class="console-empty">⚠️ {{ falabellaProductosError }}</div>
+
+      <div *ngIf="!loadingFalabellaProductos && !falabellaProductosError" class="mat-table-card">
+        <table mat-table [dataSource]="filteredFalabellaProductos" class="jop-mat-table">
+          <ng-container matColumnDef="estado">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let p">
+              <span class="fp-dot" [class.fp-dot-green]="p.enFalabella" [class.fp-dot-red]="!p.enFalabella"
+                    [matTooltip]="p.enFalabella ? 'Ya está en Falabella' : 'No está en Falabella'"></span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="sku">
+            <th mat-header-cell *matHeaderCellDef>SKU</th>
+            <td mat-cell *matCellDef="let p" class="fp-sku">{{ p.sku }}</td>
+          </ng-container>
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Nombre</th>
+            <td mat-cell *matCellDef="let p" class="jop-cell-truncate">{{ p.name }}</td>
+          </ng-container>
+          <ng-container matColumnDef="price">
+            <th mat-header-cell *matHeaderCellDef>Precio</th>
+            <td mat-cell *matCellDef="let p">${{ p.price }}</td>
+          </ng-container>
+          <ng-container matColumnDef="stock">
+            <th mat-header-cell *matHeaderCellDef>Stock</th>
+            <td mat-cell *matCellDef="let p">{{ p.stock }}</td>
+          </ng-container>
+          <ng-container matColumnDef="categoryName">
+            <th mat-header-cell *matHeaderCellDef>Categoría</th>
+            <td mat-cell *matCellDef="let p">{{ p.categoryName || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="acciones">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let p">
+              <button mat-flat-button [color]="p.enFalabella ? '' : 'primary'"
+                      [class.fp-btn-en-falabella]="p.enFalabella"
+                      [matTooltip]="p.enFalabella ? 'Ya está en Falabella' : 'No está en Falabella'"
+                      (click)="openFalabellaProduct(p)">
+                {{ p.enFalabella ? '✓ En Falabella' : 'Configurar' }}
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="falabellaColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: falabellaColumns;"></tr>
+        </table>
+        <div *ngIf="filteredFalabellaProductos.length === 0" class="console-empty">Sin resultados.</div>
+      </div>
+    </div>
+
+    <!-- ====== MODAL: Configurar y subir producto a Falabella ====== -->
+    <div class="modal-overlay" *ngIf="falabellaSelected">
+      <div class="modal-box fp-modal-box" (click)="$event.stopPropagation()">
+        <div class="fp-modal-inner">
+          <div class="fp-modal-header">
+            <span class="modal-title">🛍️ {{ falabellaSelected.sku }} — {{ falabellaSelected.name }}</span>
+            <button class="fp-close-btn" (click)="closeFalabellaProduct()">← Devolver</button>
+          </div>
+          <div class="modal-body">
+            ${{ falabellaSelected.price }} · {{ falabellaSelected.stock }} en stock · {{ falabellaSelected.categoryName || 'Sin categoría' }}
+            <span class="fp-estado-badge" [class.fp-estado-si]="falabellaSelected.enFalabella" [class.fp-estado-no]="!falabellaSelected.enFalabella">
+              <span class="fp-dot" [class.fp-dot-green]="falabellaSelected.enFalabella" [class.fp-dot-red]="!falabellaSelected.enFalabella"></span>
+              {{ falabellaSelected.enFalabella ? 'Ya está en Falabella' : 'No está en Falabella todavía' }}
+            </span>
+          </div>
+
+          <div class="fp-form-grid">
+            <!-- Identificación: Categoría + Marca -->
+            <div class="fp-card">
+              <div class="fp-card-header">🏷️ Identificación</div>
+              <div class="fp-card-body">
+                <div class="fp-field">
+                  <label class="fp-label">Categoría en Falabella *</label>
+                  <ng-container *ngIf="!falabellaCategoriaSeleccionada">
+                    <input class="config-input" style="width:100%" [(ngModel)]="falabellaCategoriaSearch"
+                           placeholder="Buscar categoría..." [disabled]="falabellaCategoriasLoading">
+                    <span class="fp-hint" *ngIf="falabellaCategoriasLoading">Cargando árbol de categorías...</span>
+                    <div class="fp-suggest-list" *ngIf="falabellaCategoriaSearch">
+                      <div class="fp-suggest-item" *ngFor="let c of filteredCategorias" (click)="selectFalabellaCategoria(c)">{{ c.path }}</div>
+                      <div class="fp-hint" *ngIf="filteredCategorias.length === 0">Sin coincidencias</div>
+                    </div>
+                  </ng-container>
+                  <div class="fp-selected-tag" *ngIf="falabellaCategoriaSeleccionada">
+                    ✅ {{ falabellaCategoriaSeleccionada.path }} (ID {{ falabellaCategoriaSeleccionada.id }})
+                    <button class="fp-clear-btn" (click)="falabellaCategoriaSeleccionada = null; falabellaCategoriaSearch=''; falabellaAtributos=[]">cambiar</button>
+                  </div>
+                </div>
+
+                <div class="fp-field">
+                  <label class="fp-label">Marca *</label>
+                  <ng-container *ngIf="!falabellaMarcaSeleccionada">
+                    <input class="config-input" style="width:100%" [(ngModel)]="falabellaMarcaSearch"
+                           placeholder="Buscar marca..." [disabled]="falabellaMarcasLoading">
+                    <span class="fp-hint" *ngIf="falabellaMarcasLoading">Cargando marcas...</span>
+                    <div class="fp-suggest-list" *ngIf="falabellaMarcaSearch">
+                      <div class="fp-suggest-item" *ngFor="let m of filteredMarcas" (click)="selectFalabellaMarca(m)">{{ m.name }}</div>
+                      <div class="fp-hint" *ngIf="filteredMarcas.length === 0">Sin coincidencias</div>
+                    </div>
+                  </ng-container>
+                  <div class="fp-selected-tag" *ngIf="falabellaMarcaSeleccionada">
+                    ✅ {{ falabellaMarcaSeleccionada.name }}
+                    <button class="fp-clear-btn" (click)="falabellaMarcaSeleccionada = null; falabellaMarcaSearch=''">cambiar</button>
+                  </div>
+                </div>
+
+                <div class="fp-field">
+                  <label class="fp-label">Título *</label>
+                  <input class="config-input" style="width:100%" [(ngModel)]="falabellaForm.name">
+                  <span class="fp-hint" [style.color]="(falabellaTituloLength < 20 || falabellaTituloLength > 100) ? '#d9534f' : '#5cb85c'">
+                    {{ falabellaTituloLength }} caracteres — Falabella exige entre 20 y 100.
+                  </span>
+                </div>
+
+                <div class="fp-field">
+                  <label class="fp-label">Descripción *</label>
+                  <textarea class="config-input" rows="5" style="width:100%; resize:vertical; font-family:inherit"
+                            [(ngModel)]="falabellaForm.description"></textarea>
+                  <span class="fp-hint" *ngIf="falabellaDescripcionLoading">Cargando descripción de Laudus...</span>
+                  <span class="fp-hint" *ngIf="!falabellaDescripcionLoading" [style.color]="falabellaDescripcionLength < 50 ? '#d9534f' : '#5cb85c'">
+                    {{ falabellaDescripcionLength }} caracteres (sin contar HTML) — Falabella exige mínimo 50.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Precio -->
+            <div class="fp-card">
+              <div class="fp-card-header">💰 Precio</div>
+              <div class="fp-card-body">
+                <div class="fp-field">
+                  <label class="fp-label">Condición</label>
+                  <select class="config-input" [(ngModel)]="falabellaForm.conditionType" (ngModelChange)="saveFalabellaDefaults()">
+                    <option value="Nuevo">Nuevo</option>
+                    <option value="Open Box">Open Box</option>
+                    <option value="Reacondicionado excelente (A)">Reacondicionado excelente (A)</option>
+                  </select>
+                </div>
+                <div class="fp-field">
+                  <label class="fp-label">Precio *</label>
+                  <input class="config-input" type="number" [(ngModel)]="falabellaForm.price">
+                  <span class="fp-hint" *ngIf="falabellaPrecioLoading">Calculando precio sugerido...</span>
+                  <span class="fp-hint" *ngIf="!falabellaPrecioLoading && falabellaPrecioLaudus != null">
+                    Precio Laudus: ${{ falabellaPrecioLaudus }} · sugerido +30% (comisión Falabella), redondeado — editable
+                  </span>
+                </div>
+                <div class="fp-field">
+                  <label class="fp-label">Precio de oferta (opcional)</label>
+                  <input class="config-input" type="number" [(ngModel)]="falabellaForm.specialPrice" placeholder="Sin oferta">
+                  <span class="fp-hint" *ngIf="falabellaForm.specialPrice">Vigencia automática: hoy → hoy + 3 meses</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Características del producto -->
+            <div class="fp-card">
+              <div class="fp-card-header">📐 Características del producto</div>
+              <div class="fp-card-body">
+                <div class="fp-hint" *ngIf="falabellaAtributosLoading">Cargando atributos de la categoría...</div>
+                <div class="fp-field">
+                  <label class="fp-label">Diámetro *</label>
+                  <input class="config-input" [(ngModel)]="falabellaExtraAttrs['Diametro']" (ngModelChange)="saveFalabellaDefaults()" placeholder="ej: 34 cm">
+                </div>
+                <div class="fp-field">
+                  <label class="fp-label">Ancho del producto</label>
+                  <input class="config-input" [(ngModel)]="falabellaForm.ancho" placeholder="ej: 34 cm">
+                </div>
+                <div class="fp-field">
+                  <label class="fp-label">Largo del producto</label>
+                  <input class="config-input" [(ngModel)]="falabellaForm.largo" placeholder="ej: 1,5 m">
+                </div>
+              </div>
+            </div>
+
+            <!-- Dimensiones de envío -->
+            <div class="fp-card">
+              <div class="fp-card-header">📦 Dimensiones de envío</div>
+              <div class="fp-card-body">
+                <div class="fp-dims-2">
+                  <div class="fp-field">
+                    <label class="fp-label">Alto (cm) *</label>
+                    <input class="config-input" type="number" [(ngModel)]="falabellaForm.packageHeight" (ngModelChange)="saveFalabellaDefaults()">
+                  </div>
+                  <div class="fp-field">
+                    <label class="fp-label">Ancho (cm) *</label>
+                    <input class="config-input" type="number" [(ngModel)]="falabellaForm.packageWidth" (ngModelChange)="saveFalabellaDefaults()">
+                  </div>
+                  <div class="fp-field">
+                    <label class="fp-label">Largo (cm) *</label>
+                    <input class="config-input" type="number" [(ngModel)]="falabellaForm.packageLength" (ngModelChange)="saveFalabellaDefaults()">
+                  </div>
+                  <div class="fp-field">
+                    <label class="fp-label">Peso (kg) *</label>
+                    <input class="config-input" type="number" [(ngModel)]="falabellaForm.packageWeight" (ngModelChange)="saveFalabellaDefaults()">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Imágenes -->
+            <div class="fp-card">
+              <div class="fp-card-header">🖼️ Imágenes</div>
+              <div class="fp-card-body">
+                <button class="test-btn" (click)="cargarImagenesWoo()" [disabled]="falabellaImagenesLoading">
+                  {{ falabellaImagenesLoading ? '⏳' : '🖼️ Ver imágenes de WooCommerce' }}
+                </button>
+                <div class="fp-img-list" *ngIf="falabellaImagenesWoo.length">
+                  <img *ngFor="let url of falabellaImagenesWoo" [src]="url" class="fp-img-thumb" [title]="url">
+                </div>
+                <div class="fp-hint" *ngIf="falabellaImagenesWoo.length === 0 && !falabellaImagenesLoading">Sin imágenes cargadas todavía.</div>
+                <button class="test-btn" (click)="subirImagenesFalabella()" [disabled]="falabellaImagenesUploading || falabellaImagenesWoo.length === 0">
+                  {{ falabellaImagenesUploading ? '⏳' : '📤 Subir imágenes (Image)' }}
+                </button>
+                <pre class="fp-error" *ngIf="falabellaImagenesError">{{ falabellaImagenesError }}</pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="fp-hint" *ngIf="falabellaCamposFaltantes.length">
+            ⚠️ Falta completar: {{ falabellaCamposFaltantes.join(', ') }}
+          </div>
+          <div class="modal-actions">
+            <button class="modal-btn modal-yes" (click)="subirFalabellaProducto()" [disabled]="!falabellaFormValid || falabellaUploading">
+              {{ falabellaUploading ? '⏳ ' + falabellaUploadingStage : (falabellaSelected.enFalabella ? '🔄 Actualizar producto + imágenes' : '📤 Subir producto + imágenes') }}
+            </button>
+          </div>
+          <div class="fp-hint" *ngIf="falabellaUploading">Puede tardar hasta 1 minuto — crea el producto, espera la confirmación y sube las imágenes automáticamente.</div>
+          <pre class="fp-error" *ngIf="falabellaUploadError">{{ falabellaUploadError }}</pre>
+
+          <!-- Feeds enviados -->
+          <div class="fp-feeds" *ngIf="falabellaFeeds.length">
+            <div class="fp-attrs-title">Feeds enviados — Falabella procesa async, hay que consultar el estado:</div>
+            <div class="fp-feed-item" *ngFor="let f of falabellaFeeds">
+              <div class="fp-feed-row">
+                <span>{{ f.label }}</span>
+                <span class="fp-feed-id">{{ f.feedId }}</span>
+                <button class="test-btn" (click)="consultarFalabellaFeed(f)" [disabled]="f.checking">
+                  {{ f.checking ? '⏳' : '🔍 Consultar estado' }}
+                </button>
+              </div>
+              <div class="test-result" [class]="f.result ? 'result-' + f.result.status : 'result-empty'" *ngIf="f.result">
+                <div class="result-header">
+                  <span class="result-badge" [class]="'badge-' + f.result.status">
+                    {{ f.result.status === 'success' ? '✅ OK' : '❌ Error' }}
+                  </span>
+                  <span class="result-code" *ngIf="f.result.statusCode">HTTP {{ f.result.statusCode }}</span>
+                </div>
+                <pre class="result-body">{{ f.result.body }}</pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions" *ngIf="falabellaFeeds.length && !falabellaSelected.enFalabella">
+            <button class="modal-btn modal-no" (click)="confirmarFalabellaSubida()">
+              ✅ Marcar como confirmado (después de revisar el estado del feed)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VISTA: LAUDUS CUSTOM FIELDS ====== -->
+    <div *ngIf="activeView === 'laudus-config'" class="view-container">
+      <div class="view-header">
+        <h1 class="view-title">🧩 Custom Fields de Laudus</h1>
+        <span class="view-subtitle">{{ filteredLaudusCustomFields.length }} de {{ laudusCustomFields.length }} campos</span>
+      </div>
+
+      <div class="filters-card">
+        <div class="filters-header">
+          <span class="card-title" style="margin:0">Buscar</span>
+          <div style="display:flex; gap:8px">
+            <button class="refresh-btn" (click)="loadLaudusCustomFields()" [disabled]="laudusLoading">
+              {{ laudusLoading ? '⏳' : '🔄' }} Actualizar
+            </button>
+            <button class="sync-btn sync-primary" (click)="openLaudusCreate()">+ Nuevo campo</button>
+          </div>
+        </div>
+        <input class="config-input" style="width:100%" [(ngModel)]="laudusSearch" placeholder="Buscar por nombre, entidad o label...">
+      </div>
+
+      <div *ngIf="laudusLoading" class="orders-loading">
+        <div class="pulse-dots"><span></span><span></span><span></span></div>
+        <span>Cargando...</span>
+      </div>
+      <div *ngIf="laudusError && !laudusLoading" class="console-empty">⚠️ {{ laudusError }}</div>
+
+      <div *ngIf="!laudusLoading && !laudusError" class="mat-table-card">
+        <table mat-table [dataSource]="filteredLaudusCustomFields" class="jop-mat-table">
+          <ng-container matColumnDef="customFieldId">
+            <th mat-header-cell *matHeaderCellDef>ID</th>
+            <td mat-cell *matCellDef="let f">{{ f.customFieldId }}</td>
+          </ng-container>
+          <ng-container matColumnDef="entity">
+            <th mat-header-cell *matHeaderCellDef>Entidad</th>
+            <td mat-cell *matCellDef="let f">{{ f.entity }}</td>
+          </ng-container>
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Nombre</th>
+            <td mat-cell *matCellDef="let f" class="fp-sku">{{ f.name }}</td>
+          </ng-container>
+          <ng-container matColumnDef="type">
+            <th mat-header-cell *matHeaderCellDef>Tipo</th>
+            <td mat-cell *matCellDef="let f">
+              <span class="jop-chip">{{ f.type }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="length">
+            <th mat-header-cell *matHeaderCellDef>Largo</th>
+            <td mat-cell *matCellDef="let f">{{ f.length }}</td>
+          </ng-container>
+          <ng-container matColumnDef="precision">
+            <th mat-header-cell *matHeaderCellDef>Prec.</th>
+            <td mat-cell *matCellDef="let f">{{ f.precision }}</td>
+          </ng-container>
+          <ng-container matColumnDef="required">
+            <th mat-header-cell *matHeaderCellDef>Requerido</th>
+            <td mat-cell *matCellDef="let f">{{ f.required ? 'Sí' : 'No' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="nullable">
+            <th mat-header-cell *matHeaderCellDef>Nulo</th>
+            <td mat-cell *matCellDef="let f">{{ f.nullable ? 'Sí' : 'No' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="acciones">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let f">
+              <button mat-icon-button (click)="openLaudusEdit(f)" matTooltip="Editar"><mat-icon>edit</mat-icon></button>
+              <button mat-icon-button color="warn" (click)="deleteLaudusCustomField(f)" [disabled]="laudusDeletingId === f.customFieldId" matTooltip="Borrar">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="laudusColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: laudusColumns;"></tr>
+        </table>
+        <div *ngIf="filteredLaudusCustomFields.length === 0" class="console-empty">Sin resultados.</div>
+      </div>
+    </div>
+
+    <!-- ====== MODAL: Crear/editar custom field de Laudus ====== -->
+    <div class="modal-overlay" *ngIf="laudusFormMode">
+      <div class="modal-box fp-modal-box" (click)="$event.stopPropagation()">
+        <div class="fp-modal-header">
+          <span class="modal-title">{{ laudusFormMode === 'create' ? '➕ Nuevo custom field' : '✏️ Editar ' + laudusForm.name }}</span>
+          <button class="fp-close-btn" (click)="closeLaudusForm()">← Devolver</button>
+        </div>
+
+        <div class="fp-field">
+          <label class="fp-label">Entidad *</label>
+          <input class="config-input" [(ngModel)]="laudusForm.entity" placeholder="products">
+        </div>
+        <div class="fp-field">
+          <label class="fp-label">Nombre interno *</label>
+          <input class="config-input" [(ngModel)]="laudusForm.name" placeholder="mi_campo_" [disabled]="laudusFormMode === 'edit'">
+          <span class="fp-hint" *ngIf="laudusFormMode === 'edit'">El nombre no se puede cambiar una vez creado.</span>
+        </div>
+        <div class="fp-field">
+          <label class="fp-label">Label</label>
+          <input class="config-input" [(ngModel)]="laudusForm.label">
+        </div>
+        <div class="fp-field">
+          <label class="fp-label">Tipo *</label>
+          <select class="config-input" [(ngModel)]="laudusForm.type">
+            <option value="C">C — Texto</option>
+            <option value="I">I — Entero</option>
+            <option value="B">B — Booleano</option>
+          </select>
+          <span class="fp-hint">Solo estos 3 códigos están confirmados contra tu cuenta real — si necesitas otro tipo, avisa antes de usarlo a ciegas.</span>
+        </div>
+        <div class="fp-dims">
+          <div class="fp-field">
+            <label class="fp-label">Largo</label>
+            <input class="config-input" type="number" [(ngModel)]="laudusForm.length">
+          </div>
+          <div class="fp-field">
+            <label class="fp-label">Precisión</label>
+            <input class="config-input" type="number" [(ngModel)]="laudusForm.precision">
+          </div>
+        </div>
+        <div class="fp-field">
+          <label class="fp-label">Valor por defecto</label>
+          <input class="config-input" [(ngModel)]="laudusForm.defaultValue">
+        </div>
+        <div class="fp-field">
+          <label class="fp-label">Opciones (enumValues, separadas por coma — opcional)</label>
+          <input class="config-input" [(ngModel)]="laudusForm.enumValuesText" placeholder="Opción A, Opción B">
+        </div>
+        <div class="fp-field" style="flex-direction:row; align-items:center; gap:16px">
+          <label class="fp-label" style="margin:0; display:flex; align-items:center; gap:6px"><input type="checkbox" [(ngModel)]="laudusForm.nullable"> Permite nulo</label>
+          <label class="fp-label" style="margin:0; display:flex; align-items:center; gap:6px"><input type="checkbox" [(ngModel)]="laudusForm.required"> Obligatorio</label>
+        </div>
+
+        <div class="modal-actions">
+          <button class="modal-btn modal-yes" (click)="saveLaudusCustomField()" [disabled]="laudusSaving || !laudusForm.entity || !laudusForm.name">
+            {{ laudusSaving ? 'Guardando...' : (laudusFormMode === 'create' ? '✅ Crear' : '✅ Guardar cambios') }}
+          </button>
+        </div>
+        <pre class="fp-error" *ngIf="laudusSaveError">{{ laudusSaveError }}</pre>
+      </div>
+    </div>
+
+    <!-- ====== VISTA: CONFIGURACIÓN ====== -->
+    <div *ngIf="activeView === 'config'" class="view-container">
+      <div class="view-header">
+        <h1 class="view-title">⚙️ Configuración</h1>
+        <span class="view-subtitle">Claves de APIs externas — se guardan en tu navegador</span>
+      </div>
+
+      <div class="config-section">
+        <div class="config-card">
+          <div class="config-card-header">
+            <span class="config-icon">🗺️</span>
+            <div>
+              <div class="config-card-title">Google Maps API Key</div>
+              <div class="config-card-desc">Habilita el autocompletado de direcciones al crear o editar clientes</div>
+            </div>
+          </div>
+
+          <div class="config-field-row">
+            <input class="config-input" type="password"
+                   [(ngModel)]="gmapsKeyInput"
+                   placeholder="AIzaSy...">
+            <button class="config-save-btn" (click)="saveGmapsKey()">
+              {{ gmapsSaved ? '✓ Guardado' : 'Guardar' }}
+            </button>
+          </div>
+
+          <div class="config-hint">
+            Necesitas una clave con <strong>Maps JavaScript API</strong> y <strong>Places API</strong> habilitadas.
+            La clave se guarda en localStorage y nunca se envía al servidor.
+          </div>
+
+          <div class="config-status" *ngIf="gmapsKeyInput">
+            <span class="cfg-dot" [style.background]="gmapsSaved ? '#22c55e' : '#f97316'"></span>
+            {{ gmapsSaved ? 'API Key configurada' : 'Sin guardar' }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modal: ¿incluir imágenes? -->
+  <div class="modal-overlay" *ngIf="showImagesModal" (click)="showImagesModal = false">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <div class="modal-title">🔄 Sincronizar Productos</div>
+      <div class="modal-body">¿Deseas incluir imágenes en la sincronización?</div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-yes" (click)="confirmSync(true)">✅ Sí, incluir</button>
+        <button class="modal-btn modal-no"  (click)="confirmSync(false)">⚡ No, solo datos</button>
+      </div>
+    </div>
+  </div>
+
+</div>

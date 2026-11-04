@@ -1,0 +1,144 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  padding: 20px;
+  width: 100%;
+}
+
+/* 🔥 Ajuste para distribuir bien la consola y pedidos */
+.content {
+  display: flex;
+  width: 100%;
+  max-width: 1200px;
+  gap: 20px;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+/* 🔥 Consola negra con altura fija y scroll */
+.console {
+  flex: 0.8;
+  min-width: 450px;
+  max-width: 50%;
+  height: 350px; /* 🔥 Fija la altura de la consola */
+  background: black;
+  color: orange;
+  padding: 10px;
+  overflow-y: auto; /* 🔥 Scroll si se llena de logs */
+  overflow-x: hidden;
+  border-radius: 5px;
+  font-family: monospace; /* 🔥 Fuente tipo consola */
+  display: flex;
+  flex-direction: column-reverse; /* 🔥 Últimos logs arriba */
+}
+
+/* 🔥 Contenedor de logs dentro de la consola */
+.console-logs {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 5px;
+  height: 100%;
+  overflow-y: auto;
+  max-height: 100%; /* 🔥 Evita que crezca más de lo necesario */
+  padding-bottom: 5px;
+}
+
+/* 🔥 Cada mensaje de log */
+.console-logs p {
+  margin: 0;
+  padding: 5px;
+  white-space: pre-wrap; /* 🔥 Permite logs largos sin romperse */
+  border-bottom: 1px solid rgba(255, 165, 0, 0.3);
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+/* 🔥 Contenedor de pedidos */
+.orders-container {
+  flex: 1.2;
+  min-width: 500px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 15px;
+  border-radius: 5px;
+  max-height: 350px; /* 🔥 Mantiene un buen tamaño */
+  overflow-y: auto;
+}
+
+/* 🔥 Título alineado a la izquierda */
+.orders-title {
+  margin: 0;
+  padding-bottom: 10px;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: left;
+  border-bottom: 2px solid #ddd;
+}
+
+/* 🔥 Loading centrado */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+}
+
+/* 🔥 Spinner animado */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left-color: #000;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 🔥 Lista de pedidos */
+.orders-list {
+  width: 100%;
+}
+
+.orders-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.orders-list li {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+/* 🔥 RESPONSIVE: Si la pantalla es pequeña, los apila */
+@media (max-width: 768px) {
+  .content {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .console,
+  .orders-container {
+    max-width: 100%;
+  }
+}
+
+/* 🔥 Botones alineados en el centro y bien distribuidos */
+.buttons-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+  padding-top: 10px;
+}

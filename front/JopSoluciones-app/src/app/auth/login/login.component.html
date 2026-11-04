@@ -1,0 +1,57 @@
+<div class="login-bg">
+  <div class="login-card">
+
+    <div class="login-logo">
+      <img src="https://jopsoluciones.cl/wp-content/uploads/2023/08/JopConLetras-768x304-1.png" alt="JOP">
+    </div>
+
+    <h2 class="login-title">Panel JOP</h2>
+    <p class="login-sub">Sincronizador ERP · WooCommerce</p>
+
+    <form class="login-form" (ngSubmit)="submit()" #f="ngForm">
+
+      <div class="field-group">
+        <label class="field-label">Usuario</label>
+        <input
+          class="field-input"
+          type="text"
+          [(ngModel)]="username"
+          name="username"
+          placeholder="Ingresa tu usuario"
+          autocomplete="username"
+          [class.input-error]="error"
+        >
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Contraseña</label>
+        <div class="password-wrap">
+          <input
+            class="field-input"
+            [type]="showPassword ? 'text' : 'password'"
+            [(ngModel)]="password"
+            name="password"
+            placeholder="Ingresa tu contraseña"
+            autocomplete="current-password"
+            [class.input-error]="error"
+          >
+          <button type="button" class="toggle-pw" (click)="showPassword = !showPassword" tabindex="-1">
+            {{ showPassword ? '🙈' : '👁️' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="error-msg" *ngIf="error">
+        ⚠️ {{ error }}
+      </div>
+
+      <button class="login-btn" type="submit" [disabled]="loading">
+        <span *ngIf="!loading">Ingresar</span>
+        <span *ngIf="loading" class="btn-loading">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        </span>
+      </button>
+
+    </form>
+  </div>
+</div>

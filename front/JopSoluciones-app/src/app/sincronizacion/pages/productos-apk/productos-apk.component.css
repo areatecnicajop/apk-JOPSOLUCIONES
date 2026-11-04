@@ -1,0 +1,249 @@
+.prod-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0f1117;
+  color: #e2e8f0;
+  overflow: hidden;
+}
+
+.prod-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 20px 12px;
+  border-bottom: 1px solid #1e2235;
+}
+
+.prod-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0 0 2px;
+}
+
+.prod-sub {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.sync-btn {
+  background: #6366f1;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sync-btn:hover:not(:disabled) { background: #4f46e5; }
+.sync-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.sync-msg {
+  margin: 12px 20px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #16a34a20;
+  border: 1px solid #16a34a50;
+  color: #4ade80;
+  font-size: 0.85rem;
+}
+.sync-msg-error {
+  background: #dc262620;
+  border-color: #dc262650;
+  color: #f87171;
+}
+
+.loading-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #64748b;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #1e2235;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #94a3b8;
+}
+
+.error-icon { font-size: 2.5rem; }
+.error-msg { font-size: 0.9rem; text-align: center; max-width: 280px; }
+
+.retry-btn {
+  background: #6366f1;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.retry-btn:hover { background: #4f46e5; }
+
+.prod-filters {
+  padding: 12px 16px 0;
+  border-bottom: 1px solid #1e2235;
+}
+
+.search-wrap {
+  display: flex;
+  align-items: center;
+  background: #1a1d27;
+  border: 1px solid #1e2235;
+  border-radius: 10px;
+  padding: 0 12px;
+  margin-bottom: 10px;
+}
+
+.search-icon { font-size: 0.9rem; margin-right: 8px; opacity: 0.6; }
+
+.search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  padding: 10px 0;
+}
+
+.search-clear {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 4px;
+}
+
+.chip-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scrollbar-width: none;
+}
+.chip-row::-webkit-scrollbar { display: none; }
+
+.cat-chip {
+  flex-shrink: 0;
+  background: #1a1d27;
+  border: 1px solid #1e2235;
+  color: #94a3b8;
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.cat-chip.chip-on {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #fff;
+  font-weight: 600;
+}
+
+.empty-state {
+  text-align: center;
+  color: #475569;
+  padding: 40px 20px;
+  font-size: 0.9rem;
+}
+
+.prod-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prod-card {
+  background: #1a1d27;
+  border: 1px solid #1e2235;
+  border-radius: 12px;
+  padding: 12px 14px;
+  transition: border-color 0.15s;
+}
+.prod-card:hover { border-color: #6366f1; }
+
+.prod-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.sku-badge {
+  background: #6366f120;
+  color: #a5b4fc;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.prod-price {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #22c55e;
+}
+
+.prod-name {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #e2e8f0;
+  line-height: 1.4;
+}
+
+.prod-bottom {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cat-tag {
+  background: #1e2235;
+  color: #64748b;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+}
+
+.stock-tag {
+  background: #16a34a20;
+  color: #4ade80;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.stock-tag.stock-zero {
+  background: #dc262620;
+  color: #f87171;
+}

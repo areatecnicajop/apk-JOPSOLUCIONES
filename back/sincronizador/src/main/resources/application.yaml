@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/jop_soluciones?serverTimezone=UTC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: ""
+    hikari:
+      maximum-pool-size: 10
+
+  jpa: 
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+  
+  cache:
+    type: simple
+    cache-names:
+      - catalogProducts
+
+falabella:
+  base-url: https://sellercenter-api.falabella.com
+  user-id: "contacto@jopsoluciones.cl"
+  api-key: ""
+  version: "1.0"
+# Claves locales (no versionadas): se leen de ./application-local.yaml si existe
+spring.config.import: optional:file:./application-local.yaml

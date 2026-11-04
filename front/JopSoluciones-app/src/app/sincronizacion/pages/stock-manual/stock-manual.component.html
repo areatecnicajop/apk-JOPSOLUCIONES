@@ -1,0 +1,90 @@
+<div class="sm-container">
+
+  <div class="sm-header">
+    <div>
+      <h1 class="sm-title">📦 Stock Manual</h1>
+      <span class="sm-sub" *ngIf="!loading && !error">{{ productos.length }} productos van a la web</span>
+    </div>
+    <button class="sm-btn-reload" (click)="cargar()">🔄 Recargar</button>
+  </div>
+
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <span>Cargando...</span>
+  </div>
+
+  <div *ngIf="error && !loading" class="error-state">
+    <div class="error-icon">⚠️</div>
+    <div class="error-msg">{{ error }}</div>
+    <button class="retry-btn" (click)="cargar()">🔄 Reintentar</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !error">
+    <div class="sm-filters">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" [(ngModel)]="searchQuery" placeholder="Buscar por SKU o nombre...">
+        <button *ngIf="searchQuery" class="search-clear" (click)="searchQuery = ''">✕</button>
+      </div>
+    </div>
+
+    <div class="sm-empty" *ngIf="filtrados.length === 0">
+      Sin productos para el filtro aplicado.
+    </div>
+
+    <div class="sm-list">
+      <div class="sm-row-wrap" *ngFor="let p of filtrados">
+        <div class="sm-row" [class.sm-row-forced]="p.forceZeroStock" [class.sm-row-expanded]="skuExpandido === p.sku" (click)="verPreview(p)">
+          <div class="sm-row-main">
+            <span class="sku-badge">{{ p.sku }}</span>
+            <span class="sm-name">{{ p.description }}</span>
+            <span class="sm-expand-arrow">{{ skuExpandido === p.sku ? '▲' : '▼' }}</span>
+          </div>
+          <div class="sm-row-side">
+            <div class="sm-stock-info">
+              <span class="sm-stock-real">Stock real: {{ p.stockReal }}</span>
+              <span class="sm-stock-efectivo" [class.sm-stock-zero]="p.stockEfectivo === 0">
+                Efectivo: {{ p.stockEfectivo }}
+              </span>
+            </div>
+            <label class="sm-toggle" (click)="$event.stopPropagation()">
+              <input type="checkbox" [checked]="p.forceZeroStock"
+                     [disabled]="guardandoSku === p.sku"
+                     (change)="toggleForceZero(p, $any($event.target).checked)">
+              <span>Forzar 0</span>
+            </label>
+          </div>
+          <div class="sm-warning" *ngIf="p.forceZeroStock && p.stockReal > 0">
+            ⚠️ Truncado a 0 manualmente — el sistema detecta stock real de {{ p.stockReal }}.
+          </div>
+        </div>
+
+        <!-- ── Preview: exactamente lo que se sube a WooCommerce ── -->
+        <div class="sm-preview" *ngIf="skuExpandido === p.sku">
+          <div class="sm-preview-title">📤 Lo que se sube a WooCommerce</div>
+
+          <div *ngIf="cargandoPreview && !previewCache[p.sku]" class="sm-preview-loading">Cargando...</div>
+          <div *ngIf="previewError && !previewCache[p.sku]" class="sm-preview-error">{{ previewError }}</div>
+
+          <div class="sm-preview-grid" *ngIf="previewCache[p.sku] as pv">
+            <div class="sm-preview-item"><span>SKU</span><strong>{{ pv.sku }}</strong></div>
+            <div class="sm-preview-item"><span>Nombre</span><strong>{{ pv.name }}</strong></div>
+            <div class="sm-preview-item"><span>Precio</span><strong>${{ pv.price }}</strong></div>
+            <div class="sm-preview-item"><span>Precio regular</span><strong>${{ pv.regular_price }}</strong></div>
+            <div class="sm-preview-item">
+              <span>Stock a subir</span>
+              <strong [class.sm-preview-zero]="pv.stock_quantity === 0">{{ pv.stock_quantity ?? '— (no se sube, sin stock conocido)' }}</strong>
+            </div>
+            <div class="sm-preview-item"><span>Estado</span><strong>{{ pv.status === 'publish' ? 'Publicado' : 'Borrador' }}</strong></div>
+            <div class="sm-preview-item"><span>Maneja stock</span><strong>{{ pv.manage_stock ? 'Sí' : 'No' }}</strong></div>
+            <div class="sm-preview-item"><span>Categoría (ID WooCommerce)</span><strong>{{ pv.categories.length ? pv.categories[0].id : '— sin categoría' }}</strong></div>
+            <div class="sm-preview-item sm-preview-full" *ngIf="pv.short_description">
+              <span>Descripción corta</span><strong class="sm-preview-desc">{{ pv.short_description }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+</div>

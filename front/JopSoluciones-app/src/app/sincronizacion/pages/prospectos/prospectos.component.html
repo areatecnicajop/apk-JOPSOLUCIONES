@@ -1,0 +1,167 @@
+<div class="prosp-container">
+
+  <!-- HEADER -->
+  <div class="prosp-header">
+    <div>
+      <h1 class="prosp-title">📍 Prospectos</h1>
+      <span class="prosp-sub">{{ todos.length }} negocios · {{ conUbicacion.length }} en mapa</span>
+    </div>
+  </div>
+
+  <!-- FILTROS -->
+  <div class="prosp-filters">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" [(ngModel)]="busqueda" (ngModelChange)="aplicarFiltro()"
+             placeholder="Buscar por nombre o comuna...">
+      <button *ngIf="busqueda" class="search-clear" (click)="limpiarBusqueda()">✕</button>
+    </div>
+
+    <div class="chip-row">
+      <button class="rubro-chip" [class.chip-on]="rubroSeleccionado === null" (click)="selectRubro(null)">
+        Todos
+      </button>
+      <button *ngFor="let r of rubros" class="rubro-chip" [class.chip-on]="rubroSeleccionado === r"
+              [style.--rcolor]="colorRubro(r)" (click)="selectRubro(r)">
+        {{ r }}
+      </button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tab-bar">
+    <button class="tab-btn" [class.tab-active]="activeTab === 'lista'" (click)="setTab('lista')">
+      📋 Lista <span class="tab-count">{{ filtrados.length }}</span>
+    </button>
+    <button class="tab-btn" [class.tab-active]="activeTab === 'mapa'" (click)="setTab('mapa')">
+      🗺️ Mapa <span class="tab-count">{{ conUbicacion.length }}</span>
+    </button>
+  </div>
+
+  <!-- ====== LISTA ====== -->
+  <div class="tab-content" *ngIf="activeTab === 'lista'">
+    <div *ngIf="filtrados.length === 0" class="empty-state">
+      Sin resultados para los filtros aplicados.
+    </div>
+
+    <div class="prosp-list">
+      <div *ngFor="let p of filtrados" class="prosp-card" (click)="abrirDetalle(p)">
+        <div class="card-icon" [style.background]="colorRubro(p.rubro) + '22'">
+          <span class="card-icon-biz" [style.color]="colorRubro(p.rubro)">🏢</span>
+        </div>
+
+        <div class="card-body">
+          <div class="card-nombre">{{ p.nombre }}</div>
+          <div class="card-meta">
+            <span class="rubro-badge" [style.background]="colorRubro(p.rubro) + '20'" [style.color]="colorRubro(p.rubro)">
+              {{ p.rubro }}
+            </span>
+            <span class="card-comuna" *ngIf="p.comuna">📌 {{ p.comuna }}</span>
+          </div>
+          <div class="card-tel" *ngIf="p.telefono">📞 {{ p.telefono }}</div>
+        </div>
+
+        <div class="card-actions" (click)="$event.stopPropagation()">
+          <a *ngIf="p.telefono" [href]="'tel:' + p.telefono" class="action-icon action-call" title="Llamar">📞</a>
+          <a *ngIf="p.latitud" [href]="mapsUrl(p)" target="_blank" class="action-icon action-map" title="Ver en mapa">🗺️</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== MAPA ====== -->
+  <div class="tab-content mapa-tab" *ngIf="activeTab === 'mapa'" style="padding:0;flex:1;display:flex;flex-direction:column;">
+    <div id="prospectos-map" style="width:100%;flex:1;min-height:200px;"></div>
+
+    <!-- Panel detalle bajo el mapa — no cubre el mapa -->
+    <div class="mapa-detalle-panel" *ngIf="detalle">
+      <div class="detalle-handle"></div>
+      <div class="detalle-rubro-row">
+        <span class="detalle-rubro-badge" [style.background]="colorRubro(detalle.rubro)" style="color:#fff">
+          {{ detalle.rubro }}
+        </span>
+      </div>
+      <h2 class="detalle-nombre">{{ detalle.nombre }}</h2>
+      <div class="detalle-dir" *ngIf="detalle.direccion || detalle.comuna">
+        📌 {{ direccionCompleta(detalle) }}
+      </div>
+      <div class="detalle-divider"></div>
+      <div class="detalle-info" *ngIf="detalle.telefono">
+        <span class="info-label">Teléfono</span>
+        <span>{{ detalle.telefono }}</span>
+      </div>
+      <div class="detalle-info" *ngIf="detalle.email">
+        <span class="info-label">Email</span>
+        <span>{{ detalle.email }}</span>
+      </div>
+      <div class="detalle-info" *ngIf="detalle.region">
+        <span class="info-label">Región</span>
+        <span>{{ detalle.region }}</span>
+      </div>
+      <div class="detalle-divider"></div>
+      <div class="detalle-actions">
+        <a *ngIf="detalle.telefono" [href]="'tel:' + detalle.telefono" class="det-btn det-call">📞 Llamar</a>
+        <a *ngIf="detalle.telefono" [href]="waUrl(detalle)" target="_blank" class="det-btn det-wa">💬 WhatsApp</a>
+        <a *ngIf="detalle.email" [href]="'mailto:' + detalle.email" class="det-btn det-email">✉️ Email</a>
+        <a [href]="mapsUrl(detalle)" target="_blank" class="det-btn det-map">🗺️ Maps</a>
+      </div>
+      <button class="detalle-close" (click)="cerrarDetalle()">✕ Cerrar</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ====== PANEL DETALLE (solo en pestaña lista) ====== -->
+<div class="detalle-overlay" *ngIf="detalle && activeTab === 'lista'" (click)="cerrarDetalle()">
+  <div class="detalle-panel" (click)="$event.stopPropagation()">
+    <div class="detalle-handle"></div>
+
+    <div class="detalle-rubro-row">
+      <span class="detalle-rubro-badge"
+            [style.background]="colorRubro(detalle.rubro)"
+            style="color:#fff">
+        {{ detalle.rubro }}
+      </span>
+    </div>
+
+    <h2 class="detalle-nombre">{{ detalle.nombre }}</h2>
+
+    <div class="detalle-dir" *ngIf="detalle.direccion || detalle.comuna">
+      📌 {{ direccionCompleta(detalle) }}
+    </div>
+
+    <div class="detalle-divider"></div>
+
+    <div class="detalle-info" *ngIf="detalle.telefono">
+      <span class="info-label">Teléfono</span>
+      <span>{{ detalle.telefono }}</span>
+    </div>
+    <div class="detalle-info" *ngIf="detalle.email">
+      <span class="info-label">Email</span>
+      <span>{{ detalle.email }}</span>
+    </div>
+    <div class="detalle-info" *ngIf="detalle.region">
+      <span class="info-label">Región</span>
+      <span>{{ detalle.region }}</span>
+    </div>
+
+    <div class="detalle-divider"></div>
+
+    <div class="detalle-actions">
+      <a *ngIf="detalle.telefono" [href]="'tel:' + detalle.telefono" class="det-btn det-call">
+        📞 Llamar
+      </a>
+      <a *ngIf="detalle.telefono" [href]="waUrl(detalle)" target="_blank" class="det-btn det-wa">
+        💬 WhatsApp
+      </a>
+      <a *ngIf="detalle.email" [href]="'mailto:' + detalle.email" class="det-btn det-email">
+        ✉️ Email
+      </a>
+      <a [href]="mapsUrl(detalle)" target="_blank" class="det-btn det-map">
+        🗺️ Maps
+      </a>
+    </div>
+
+    <button class="detalle-close" (click)="cerrarDetalle()">✕ Cerrar</button>
+  </div>
+</div>

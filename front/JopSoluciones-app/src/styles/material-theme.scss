@@ -1,0 +1,27 @@
+@use '@angular/material' as mat;
+
+// Tema oscuro + naranja acorde a la paleta que ya usa el resto de la app
+// (fondos #16213e/#0f3460, acento #f57c00) — reemplaza el prebuilt
+// cyan-orange.css que traía Angular Material por defecto y que nunca se
+// llegó a usar en ningún componente.
+$jop-theme: mat.define-theme((
+  color: (
+    theme-type: dark,
+    primary: mat.$orange-palette,
+    tertiary: mat.$blue-palette,
+  ),
+));
+
+html {
+  @include mat.all-component-themes($jop-theme);
+}
+
+// Fondo de superficie más cercano al navy existente que el gris M3 por defecto.
+:root {
+  --mat-sys-surface: #16213e;
+  --mat-sys-surface-container: #0f3460;
+  --mat-sys-surface-container-low: #1a2744;
+  --mat-sys-surface-container-high: #1e2d4a;
+  --mat-sys-on-surface: #e4e8f1;
+  --mat-sys-outline: #2a3f5f;
+}

@@ -1,0 +1,68 @@
+<div class="cw-container">
+
+  <div class="cw-header">
+    <div>
+      <h1 class="cw-title">🏷️ Categorías Web</h1>
+      <span class="cw-sub" *ngIf="!loading && !error">{{ categorias.length }} categorías locales</span>
+    </div>
+    <button class="cw-btn-reload" (click)="cargar()">🔄 Recargar</button>
+  </div>
+
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <span>Cargando...</span>
+  </div>
+
+  <div *ngIf="error && !loading" class="error-state">
+    <div class="error-icon">⚠️</div>
+    <div class="error-msg">{{ error }}</div>
+    <button class="retry-btn" (click)="cargar()">🔄 Reintentar</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !error">
+    <div class="cw-filters">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" [(ngModel)]="searchQuery" placeholder="Buscar por nombre o ruta...">
+        <button *ngIf="searchQuery" class="search-clear" (click)="searchQuery = ''">✕</button>
+      </div>
+    </div>
+
+    <div class="cw-empty" *ngIf="filtradas.length === 0">
+      Sin categorías para el filtro aplicado.
+    </div>
+
+    <div class="cw-list">
+      <div class="cw-row-wrap" *ngFor="let c of filtradas">
+        <div class="cw-row" [class.cw-row-nueva]="!c.yaSincronizada" [class.cw-row-expanded]="laudusIdExpandido === c.laudusId" (click)="verPreview(c)">
+          <div class="cw-row-main">
+            <span class="cw-name">{{ c.laudusName }}</span>
+            <span class="cw-badge" [class.cw-badge-nueva]="!c.yaSincronizada">
+              {{ c.yaSincronizada ? 'WP #' + c.idWpCategorie : 'Nueva' }}
+            </span>
+            <span class="cw-expand-arrow">{{ laudusIdExpandido === c.laudusId ? '▲' : '▼' }}</span>
+          </div>
+          <div class="cw-path">{{ c.laudusPath }}</div>
+        </div>
+
+        <!-- ── Preview: exactamente lo que se sube a WooCommerce ── -->
+        <div class="cw-preview" *ngIf="laudusIdExpandido === c.laudusId">
+          <div class="cw-preview-title">📤 Lo que se sube a WooCommerce</div>
+
+          <div *ngIf="cargandoPreview && !previewCache[c.laudusId]" class="cw-preview-loading">Cargando...</div>
+          <div *ngIf="previewError && !previewCache[c.laudusId]" class="cw-preview-error">{{ previewError }}</div>
+
+          <div class="cw-preview-grid" *ngIf="previewCache[c.laudusId] as pv">
+            <div class="cw-preview-item"><span>Nombre</span><strong>{{ pv.name }}</strong></div>
+            <div class="cw-preview-item"><span>Slug</span><strong>{{ pv.slug }}</strong></div>
+            <div class="cw-preview-item">
+              <span>Categoría padre (ID WooCommerce)</span>
+              <strong>{{ pv.parent === 0 ? '— sin padre (raíz)' : pv.parent }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+</div>

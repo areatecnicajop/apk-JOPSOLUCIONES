@@ -1,0 +1,40 @@
+# Dependencias y builds
+node_modules/
+target/
+build/
+dist/
+.dart_tool/
+.angular/
+.gradle/
+*.apk
+*.jar
+*.class
+
+# Config local y claves (NUNCA subir)
+application-local.yaml
+application-local.yml
+.env
+.env.*
+*.keystore
+*.jks
+local.properties
+key.properties
+
+# Configuracion local de IDE / herramientas
+.idea/
+.vscode/
+.claude/
+*.iml
+
+# Datos y logs del scraper (datos de prospectos)
+clientes-scraper/*.db
+clientes-scraper/*.xlsx
+clientes-scraper/*.json
+clientes-scraper/*.html
+clientes-scraper/*.log
+__pycache__/
+*.pyc
+
+# Varios
+*.log
+.DS_Store

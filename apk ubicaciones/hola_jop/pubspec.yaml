@@ -1,0 +1,49 @@
+name: jop_ubicaciones
+description: "App de gestión de clientes con mapa interactivo para JOP Soluciones"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Mapa
+  flutter_map: ^8.1.1
+  latlong2: ^0.9.1
+
+  # Estado
+  flutter_riverpod: ^2.6.1
+
+  # Base de datos local (web + mobile + desktop)
+  hive_flutter: ^1.1.0
+
+  # Ubicación GPS
+  geolocator: ^14.0.0
+
+  # HTTP para API Laudus
+  http: ^1.2.0
+
+  # Utilidades
+  uuid: ^4.5.1
+  intl: ^0.19.0
+
+  # Abrir llamadas, WhatsApp, Maps
+  url_launcher: ^6.3.1
+
+  # Persistencia de configuración
+  shared_preferences: ^2.3.2
+
+  # Notificación para volver rápido a la app desde Google Maps
+  flutter_local_notifications: ^22.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

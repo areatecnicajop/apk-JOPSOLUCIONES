@@ -1,0 +1,65 @@
+<div class="prod-container">
+
+  <!-- HEADER -->
+  <div class="prod-header">
+    <div>
+      <h1 class="prod-title">📦 Catálogo de Productos</h1>
+      <span class="prod-sub" *ngIf="!loading && !error">{{ productos.length }} productos</span>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <span>Cargando catálogo...</span>
+  </div>
+
+  <!-- ERROR -->
+  <div *ngIf="error && !loading" class="error-state">
+    <div class="error-icon">⚠️</div>
+    <div class="error-msg">{{ error }}</div>
+    <button class="retry-btn" (click)="loadProductos()">🔄 Reintentar</button>
+  </div>
+
+  <!-- CONTENT -->
+  <ng-container *ngIf="!loading && !error">
+    <!-- FILTERS -->
+    <div class="prod-filters">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" [(ngModel)]="searchQuery" placeholder="Buscar por nombre, SKU o categoría...">
+        <button *ngIf="searchQuery" class="search-clear" (click)="searchQuery = ''">✕</button>
+      </div>
+
+      <div class="chip-row">
+        <button class="cat-chip" [class.chip-on]="categoriaFilter === null" (click)="categoriaFilter = null">
+          Todos
+        </button>
+        <button *ngFor="let cat of categorias" class="cat-chip" [class.chip-on]="categoriaFilter === cat"
+                (click)="categoriaFilter = cat">
+          {{ cat }}
+        </button>
+      </div>
+    </div>
+
+    <!-- EMPTY -->
+    <div *ngIf="filteredProductos.length === 0" class="empty-state">
+      Sin productos para los filtros aplicados.
+    </div>
+
+    <!-- LIST -->
+    <div class="prod-list">
+      <div *ngFor="let p of filteredProductos" class="prod-card">
+        <div class="prod-card-top">
+          <span class="sku-badge">{{ p.sku }}</span>
+          <span class="prod-price">{{ formatPrice(p) }}</span>
+        </div>
+        <div class="prod-name">{{ p.name }}</div>
+        <div class="prod-bottom" *ngIf="p.categoryName">
+          <span class="cat-tag">{{ p.categoryName }}</span>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+</div>

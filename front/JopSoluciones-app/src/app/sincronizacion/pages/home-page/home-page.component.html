@@ -16,7 +16,7 @@
           <span class="chevron" [class.open]="openSection === 'sync'">▾</span>
         </button>
         <div class="nav-section-body" [class.expanded]="openSection === 'sync'">
-          <button class="nav-item" [class.selected]="activeView === 'sync'" (click)="setView('sync')">
+          <button *ngIf="showPanelSync" class="nav-item" [class.selected]="activeView === 'sync'" (click)="setView('sync')">
             🔄 Panel de Sync
           </button>
           <button class="nav-item" [class.selected]="activeView === 'stock-manual'" (click)="setView('stock-manual')">

@@ -178,8 +178,11 @@ export class HomePageComponent implements OnInit, OnDestroy {
   private ws!: WebSocket;
 
   showImagesModal: boolean = false;
+  // "Panel de Sync" oculto del menú (no eliminado): poner en true para volver a mostrarlo.
+  // Al reactivarlo, restaurar activeView = 'sync' como vista inicial.
+  showPanelSync: boolean = false;
   openSection: string = 'sync';
-  activeView: string = 'sync';
+  activeView: string = 'stock-manual';
 
   // Config
   gmapsKeyInput: string = '';

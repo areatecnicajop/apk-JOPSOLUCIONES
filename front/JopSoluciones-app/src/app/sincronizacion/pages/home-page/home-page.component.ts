@@ -82,6 +82,29 @@ interface SyncProductoRow {
   stockAnterior: number | null;  // stock que tenía antes de esa actualización (null = no existía)
 }
 
+// Una foto dentro del editor: 'e' = ya está en la web, 'n' = nueva (aún sin subir).
+interface FotoItem {
+  key: string;
+  tipo: 'e' | 'n';
+  id?: number;       // solo 'e'
+  url: string;       // URL de la web ('e') o vista previa local ('n')
+  nombre: string;
+  blob?: Blob;       // solo 'n': imagen ya normalizada (JPEG 1000×1000, fondo blanco)
+}
+
+interface FotoEditor {
+  sku: string;
+  nombre: string;
+  cargando: boolean;
+  guardando: boolean;
+  items: FotoItem[];
+  idsOriginales: number[];   // orden en que estaban en la web al abrir
+  max: number;
+  error: string;
+  exito: string;
+  avisos: string[];
+}
+
 interface LaudusCustomField {
   customFieldId: number;
   entity: string;
@@ -186,6 +209,9 @@ export class HomePageComponent implements OnInit, OnDestroy {
   // "Panel de Sync" oculto del menú (no eliminado): poner en true para volver a mostrarlo.
   // Al reactivarlo, restaurar activeView = 'sync' como vista inicial.
   showPanelSync: boolean = false;
+  // Apartado antiguo "Imágenes → Galería" oculto (no borrado): las fotos ahora se editan desde Productos → 📷.
+  // Para volver a mostrarlo basta poner esta bandera en true.
+  showApartadoImagenes: boolean = false;
   openSection: string = 'sync';
   activeView: string = 'sync-productos';
 
@@ -332,11 +358,18 @@ export class HomePageComponent implements OnInit, OnDestroy {
   syncProductosLoading = false;
   syncProductosError = '';
   syncProductosSearch = '';
-  syncProductosColumns = ['sel', 'estado', 'sku', 'name', 'price', 'stock', 'forzar', 'efectivo', 'enviado', 'diferencia', 'acciones'];
+  syncProductosColumns = ['sel', 'estado', 'sku', 'name', 'price', 'stock', 'forzar', 'efectivo', 'enviado', 'diferencia', 'fotos', 'acciones'];
 
   // Stock: selección y envío a WooCommerce (solo stock, ver SyncProductosController.enviarStock)
   syncSoloDiferencias = false;
   syncSoloCambiaron = false;
+  syncFiltroFotos: 'todas' | 'sin' | 'con' = 'todas';
+  // SKU → cantidad de fotos en la web (null mientras carga o si no se pudo consultar)
+  syncFotosConteo: Record<string, number> | null = null;
+  syncFotosCargando = false;
+  syncFotosError = '';
+  fotoEditor: FotoEditor | null = null;
+  fotoDragIndex: number | null = null;
   syncFiltroWeb: 'todos' | 'en-web' | 'no-web' = 'todos';
   syncSeleccion = new Set<string>();
   syncActualizandoStock = false;
@@ -1459,6 +1492,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
         this.syncProductosLoading = false;
         alCargar?.();
         this.cdr.detectChanges();
+        this.cargarResumenFotos();
       },
       error: () => { this.syncProductosError = 'No se pudo cargar el catálogo'; this.syncProductosLoading = false; this.cdr.detectChanges(); }
     });
@@ -1469,11 +1503,216 @@ export class HomePageComponent implements OnInit, OnDestroy {
     return this.syncProductos.filter(p =>
       (this.syncFiltroWeb === 'todos' || (this.syncFiltroWeb === 'en-web') === p.enWooCommerce) &&
       (!this.syncSoloCambiaron || p.stockCambio) &&
+      (this.syncFiltroFotos === 'todas' || (this.syncFiltroFotos === 'sin' ? this.fotosDe(p) === 0 : (this.fotosDe(p) ?? 0) > 0)) &&
       (!this.syncSoloDiferencias || this.syncNecesitaEnvio(p)) &&
       (!q ||
         p.sku.toLowerCase().includes(q) ||
         p.name?.toLowerCase().includes(q) ||
         (p.categoryName?.toLowerCase().includes(q) ?? false)));
+  }
+
+  // ── Fotos: resumen por producto y editor ─────────────────────────
+
+  // Cuántas fotos tiene el producto en la web (null = no se sabe: cargando, error o producto fuera de la web).
+  fotosDe(p: SyncProductoRow): number | null {
+    if (!p.enWooCommerce || !this.syncFotosConteo) return null;
+    const n = this.syncFotosConteo[p.sku];
+    return n === undefined ? null : n;
+  }
+
+  get syncSinFotosCount(): number {
+    return this.syncProductos.filter(p => this.fotosDe(p) === 0).length;
+  }
+
+  cargarResumenFotos(): void {
+    this.syncFotosCargando = true;
+    this.syncFotosError = '';
+    this.http.get<{ fotos: Record<string, number> }>(`${environment.baseUrl}sync/productos/fotos-resumen`).subscribe({
+      next: res => { this.syncFotosConteo = res.fotos; this.syncFotosCargando = false; this.cdr.detectChanges(); },
+      error: () => {
+        this.syncFotosConteo = null;
+        this.syncFotosCargando = false;
+        this.syncFotosError = 'No se pudo consultar cuántas fotos tiene cada producto en la web.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  abrirFotos(p: SyncProductoRow): void {
+    if (!p.enWooCommerce) return;
+    this.fotoEditor = {
+      sku: p.sku, nombre: p.name, cargando: true, guardando: false,
+      items: [], idsOriginales: [], max: 10, error: '', exito: '', avisos: []
+    };
+    this.http.get<{ fotos: { id: number; url: string; nombre: string }[]; max: number }>(
+      `${environment.baseUrl}sync/productos/${encodeURIComponent(p.sku)}/fotos`).subscribe({
+      next: res => {
+        if (!this.fotoEditor || this.fotoEditor.sku !== p.sku) return;
+        this.fotoEditor.items = res.fotos.map(f => ({ key: 'e' + f.id, tipo: 'e' as const, id: f.id, url: f.url, nombre: f.nombre ?? '' }));
+        this.fotoEditor.idsOriginales = res.fotos.map(f => f.id);
+        this.fotoEditor.max = res.max;
+        this.fotoEditor.cargando = false;
+        this.cdr.detectChanges();
+      },
+      error: err => {
+        if (!this.fotoEditor) return;
+        this.fotoEditor.cargando = false;
+        this.fotoEditor.error = err.error?.error ?? 'No se pudieron leer las fotos del producto en la web.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  private liberarPreviews(items: FotoItem[]): void {
+    items.filter(i => i.tipo === 'n').forEach(i => URL.revokeObjectURL(i.url));
+  }
+
+  cerrarFotos(): void {
+    const ed = this.fotoEditor;
+    if (!ed || ed.guardando) return;
+    if (this.fotosHayCambios && !confirm('Tienes cambios sin guardar en las fotos. ¿Cerrar y descartarlos?')) return;
+    this.liberarPreviews(ed.items);
+    this.fotoEditor = null;
+  }
+
+  // Hay cambios si hay fotos nuevas, se quitó alguna o cambió el orden.
+  get fotosHayCambios(): boolean {
+    const ed = this.fotoEditor;
+    if (!ed) return false;
+    if (ed.items.some(i => i.tipo === 'n')) return true;
+    const ids = ed.items.map(i => i.id);
+    return ids.length !== ed.idsOriginales.length || ids.some((id, k) => id !== ed.idsOriginales[k]);
+  }
+
+  get fotosQuitadasCount(): number {
+    const ed = this.fotoEditor;
+    if (!ed) return 0;
+    const quedan = new Set(ed.items.filter(i => i.tipo === 'e').map(i => i.id));
+    return ed.idsOriginales.filter(id => !quedan.has(id)).length;
+  }
+
+  // Deja la imagen en JPEG 1000×1000 con fondo blanco. El navegador ya respeta la orientación EXIF
+  // (fotos de celular) y entiende WebP, que el servidor no lee.
+  private async normalizarImagen(file: File): Promise<Blob> {
+    const LADO = 1000;
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const ratio = Math.min(LADO / bmp.width, LADO / bmp.height);
+    const nw = Math.max(1, Math.round(bmp.width * ratio));
+    const nh = Math.max(1, Math.round(bmp.height * ratio));
+    const canvas = document.createElement('canvas');
+    canvas.width = LADO; canvas.height = LADO;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, LADO, LADO);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bmp, (LADO - nw) / 2, (LADO - nh) / 2, nw, nh);
+    bmp.close();
+    return await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob')), 'image/jpeg', 0.88));
+  }
+
+  async fotosAgregar(files: FileList | File[] | null): Promise<void> {
+    const ed = this.fotoEditor;
+    if (!ed || !files || ed.guardando) return;
+    ed.error = ''; ed.exito = '';
+    const lista = Array.from(files);
+    const rechazadas: string[] = [];
+    for (const f of lista) {
+      if (ed.items.length >= ed.max) { rechazadas.push(`«${f.name}»: máximo ${ed.max} fotos por producto`); continue; }
+      if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { rechazadas.push(`«${f.name}»: solo JPG, PNG o WebP`); continue; }
+      if (f.size > 10 * 1024 * 1024) { rechazadas.push(`«${f.name}»: pesa más de 10 MB`); continue; }
+      try {
+        const blob = await this.normalizarImagen(f);
+        ed.items.push({ key: 'n' + Date.now() + Math.random(), tipo: 'n', url: URL.createObjectURL(blob), nombre: f.name, blob });
+      } catch {
+        rechazadas.push(`«${f.name}»: no se pudo leer la imagen`);
+      }
+    }
+    if (rechazadas.length) ed.error = 'No se agregaron: ' + rechazadas.join('; ') + '.';
+    this.cdr.detectChanges();
+  }
+
+  fotosSeleccionadas(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    void this.fotosAgregar(input.files);
+    input.value = '';
+  }
+
+  fotosSoltadas(ev: DragEvent): void {
+    ev.preventDefault();
+    if (ev.dataTransfer?.files?.length) void this.fotosAgregar(ev.dataTransfer.files);
+  }
+
+  fotoQuitar(i: number): void {
+    const ed = this.fotoEditor;
+    if (!ed || ed.guardando) return;
+    const [q] = ed.items.splice(i, 1);
+    if (q?.tipo === 'n') URL.revokeObjectURL(q.url);
+    ed.exito = '';
+  }
+
+  fotoMover(i: number, delta: number): void {
+    const ed = this.fotoEditor;
+    if (!ed || ed.guardando) return;
+    const j = i + delta;
+    if (j < 0 || j >= ed.items.length) return;
+    [ed.items[i], ed.items[j]] = [ed.items[j], ed.items[i]];
+    ed.exito = '';
+  }
+
+  fotoDragStart(i: number): void { this.fotoDragIndex = i; }
+
+  fotoDropEn(i: number, ev: DragEvent): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const ed = this.fotoEditor;
+    const from = this.fotoDragIndex;
+    this.fotoDragIndex = null;
+    if (!ed || ed.guardando || from === null || from === i) return;
+    const [it] = ed.items.splice(from, 1);
+    ed.items.splice(i, 0, it);
+    ed.exito = '';
+  }
+
+  fotosGuardar(): void {
+    const ed = this.fotoEditor;
+    if (!ed || ed.guardando || !this.fotosHayCambios) return;
+    const quitadas = this.fotosQuitadasCount;
+    const nuevas = ed.items.filter(i => i.tipo === 'n');
+    const detalle = [
+      nuevas.length ? `${nuevas.length} nueva(s)` : '',
+      quitadas ? `${quitadas} a borrar (también de la biblioteca de medios)` : ''
+    ].filter(Boolean).join(', ');
+    if (!confirm(`¿Guardar y publicar las fotos de ${ed.sku} en la web?${detalle ? '\n' + detalle + '.' : ''}`)) return;
+
+    const orden: string[] = [];
+    const form = new FormData();
+    let n = 0;
+    for (const it of ed.items) {
+      if (it.tipo === 'e') orden.push('e:' + it.id);
+      else { orden.push('n:' + n++); form.append('nuevas', it.blob!, `${ed.sku}-${n}.jpg`); }
+    }
+    form.append('plan', JSON.stringify({ orden }));
+
+    ed.guardando = true; ed.error = ''; ed.exito = ''; ed.avisos = [];
+    this.http.post<{ ok: boolean; fotos: { id: number; url: string; nombre: string }[]; subidas: number; borradas: number; advertencias: string[] }>(
+      `${environment.baseUrl}sync/productos/${encodeURIComponent(ed.sku)}/fotos`, form).subscribe({
+      next: res => {
+        this.liberarPreviews(ed.items);
+        ed.items = res.fotos.map(f => ({ key: 'e' + f.id, tipo: 'e' as const, id: f.id, url: f.url, nombre: f.nombre ?? '' }));
+        ed.idsOriginales = res.fotos.map(f => f.id);
+        ed.guardando = false;
+        ed.avisos = res.advertencias ?? [];
+        ed.exito = `Guardado y verificado en la web: ${res.fotos.length} foto(s) · ${res.subidas} subida(s) · ${res.borradas} borrada(s).`;
+        if (this.syncFotosConteo) this.syncFotosConteo[ed.sku] = res.fotos.length;
+        this.cdr.detectChanges();
+      },
+      error: err => {
+        ed.guardando = false;
+        ed.error = err.error?.error ?? 'No se pudieron guardar las fotos. Intenta de nuevo.';
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   // ── Stock: diferencia, selección y envío ─────────────────────────

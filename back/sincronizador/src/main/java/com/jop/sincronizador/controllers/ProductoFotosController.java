@@ -160,6 +160,30 @@ public class ProductoFotosController {
         }
     }
 
+    // ── Foto original, para poder editarla (zoom, mover, girar) en el navegador ──
+    // El navegador no puede leer pixeles de imágenes de otro dominio, por eso pasa por acá.
+    // Solo sirve fotos que el producto tiene HOY en la web (no es un proxy abierto).
+
+    @GetMapping("/{sku}/fotos/{id}/original")
+    public ResponseEntity<byte[]> original(@PathVariable String sku, @PathVariable long id) {
+        LaudusProduct p = producto(sku);
+        if (p == null || !enWeb(p)) return ResponseEntity.status(404).build();
+        try {
+            Foto f = leerFotos(cfg(), p.getIdWP()).stream().filter(x -> x.id() == id).findFirst().orElse(null);
+            if (f == null || f.url() == null) return ResponseEntity.status(404).build();
+            byte[] bytes = descargar(f.url());
+            if (bytes == null) return ResponseEntity.status(502).build();
+            String ext = extensionDe(f.url());
+            String tipo = ext.equals(".png") ? "image/png" : "image/jpeg";
+            return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.parseMediaType(tipo))
+                .header("Cache-Control", "private, max-age=60")
+                .body(bytes);
+        } catch (Exception e) {
+            return ResponseEntity.status(502).build();
+        }
+    }
+
     // ── Guardar: deja la web como quedó el editor ────────────────────
     //
     // plan = {"orden": ["e:123", "n:0", "e:456", "n:1"]}

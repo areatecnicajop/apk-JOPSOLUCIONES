@@ -870,6 +870,7 @@
               <span class="fe-pos">{{ i === 0 ? '★ Principal' : (i + 1) }}</span>
               <span class="fe-tag" *ngIf="it.tipo === 'n'">Nueva</span>
               <div class="fe-tools">
+                <button class="fe-edit" (click)="fotoEditar(i)" [disabled]="fotoEditor.guardando" title="Editar: zoom, mover y girar">✏ Editar</button>
                 <button (click)="fotoMover(i, -1)" [disabled]="i === 0 || fotoEditor.guardando" title="Mover antes">◀</button>
                 <button (click)="fotoMover(i, 1)" [disabled]="i === fotoEditor.items.length - 1 || fotoEditor.guardando" title="Mover después">▶</button>
                 <button (click)="fotoQuitar(i)" [disabled]="fotoEditor.guardando" title="Quitar" class="fe-del">🗑</button>
@@ -899,6 +900,45 @@
             <button class="modal-btn modal-yes" (click)="fotosGuardar()" [disabled]="fotoEditor.guardando || !fotosHayCambios">
               {{ fotoEditor.guardando ? '⏳ Guardando y verificando en la web...' : '💾 Guardar y publicar' }}
             </button>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+
+    <!-- ====== MODAL: Ajustar una foto (zoom, mover, girar) — va encima del editor de fotos ====== -->
+    <div class="modal-overlay fe-ajuste-overlay" *ngIf="fotoAjuste">
+      <div class="modal-box fa-box" (click)="$event.stopPropagation()">
+        <div class="fp-modal-header">
+          <span class="modal-title">✏ Ajustar foto</span>
+          <button class="fp-close-btn" (click)="ajusteCancelar()">✕ Cancelar</button>
+        </div>
+
+        <div class="fp-hint" *ngIf="fotoAjuste.cargando">⏳ Abriendo la foto original...</div>
+        <div class="fp-hint sp-msg-error" *ngIf="fotoAjuste.error">⚠️ {{ fotoAjuste.error }}</div>
+
+        <ng-container *ngIf="!fotoAjuste.cargando && fotoAjuste.fuente">
+          <div class="fp-hint">Arrastra la foto para moverla · rueda del mouse o deslizador para el zoom. El cuadrado es exactamente lo que se publica (1000×1000, fondo blanco).</div>
+          <div class="fa-stage">
+            <canvas #ajusteCanvas class="fa-canvas"
+                    (pointerdown)="ajusteBajar($event)" (pointermove)="ajusteMover($event)"
+                    (pointerup)="ajusteSoltar()" (pointercancel)="ajusteSoltar()"
+                    (wheel)="ajusteRueda($event)"></canvas>
+          </div>
+
+          <div class="fa-controls">
+            <button (click)="ajusteZoomPor(1 / 1.15)" title="Alejar">－</button>
+            <input type="range" min="0.5" max="6" step="0.01" [(ngModel)]="fotoAjuste.zoom" (ngModelChange)="ajusteRender()">
+            <button (click)="ajusteZoomPor(1.15)" title="Acercar">＋</button>
+            <span class="fa-zoom">{{ (fotoAjuste.zoom * 100) | number:'1.0-0' }}%</span>
+            <button (click)="ajusteGirar(-1)" title="Girar a la izquierda">⟲ 90°</button>
+            <button (click)="ajusteGirar(1)" title="Girar a la derecha">⟳ 90°</button>
+            <button (click)="ajusteRestablecer()">Restablecer</button>
+          </div>
+          <div class="fp-hint sp-msg-error" *ngIf="ajusteEscala > 1">⚠️ La foto se está ampliando por encima de su resolución real ({{ fotoAjuste.fuente.width }}×{{ fotoAjuste.fuente.height }}); puede verse borrosa.</div>
+
+          <div class="fe-actions">
+            <button class="refresh-btn" (click)="ajusteCancelar()">Cancelar</button>
+            <button class="modal-btn modal-yes" (click)="ajusteAplicar()">✔ Aplicar</button>
           </div>
         </ng-container>
       </div>

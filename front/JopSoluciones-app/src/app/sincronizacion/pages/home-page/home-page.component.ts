@@ -1,4 +1,4 @@
-import { Component, ChangeDetectorRef, OnInit, OnDestroy } from '@angular/core';
+import { Component, ChangeDetectorRef, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { ApiService } from '../../services/api.service';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { Order } from '../../interfaces/order.model';
@@ -90,6 +90,23 @@ interface FotoItem {
   url: string;       // URL de la web ('e') o vista previa local ('n')
   nombre: string;
   blob?: Blob;       // solo 'n': imagen ya normalizada (JPEG 1000×1000, fondo blanco)
+  archivo?: Blob;    // solo 'n': foto original sin tocar, para poder volver a editarla
+  ajuste?: FotoAjusteValores;  // solo 'n' editada: zoom/posición/giro con que se generó
+}
+
+interface FotoAjusteValores {
+  zoom: number;   // 1 = la foto completa dentro del cuadrado
+  ox: number;     // desplazamiento horizontal en px del lienzo de 1000×1000
+  oy: number;     // desplazamiento vertical
+  rot: number;    // giros de 90° (0-3)
+}
+
+interface FotoAjuste extends FotoAjusteValores {
+  indice: number;
+  origen: Blob | null;
+  fuente: ImageBitmap | null;
+  cargando: boolean;
+  error: string;
 }
 
 interface FotoEditor {
@@ -371,6 +388,10 @@ export class HomePageComponent implements OnInit, OnDestroy {
   syncFotosError = '';
   fotoEditor: FotoEditor | null = null;
   fotoDragIndex: number | null = null;
+  // Visor de ajuste de una foto (zoom, mover, girar)
+  fotoAjuste: FotoAjuste | null = null;
+  @ViewChild('ajusteCanvas') ajusteCanvas?: ElementRef<HTMLCanvasElement>;
+  private ajusteArrastre: { x: number; y: number; ox: number; oy: number } | null = null;
   syncSeleccion = new Set<string>();
   syncActualizandoStock = false;
   syncEnviandoStock = false;
@@ -1748,7 +1769,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
       if (f.size > 10 * 1024 * 1024) { rechazadas.push(`«${f.name}»: pesa más de 10 MB`); continue; }
       try {
         const blob = await this.normalizarImagen(f);
-        ed.items.push({ key: 'n' + Date.now() + Math.random(), tipo: 'n', url: URL.createObjectURL(blob), nombre: f.name, blob });
+        ed.items.push({ key: 'n' + Date.now() + Math.random(), tipo: 'n', url: URL.createObjectURL(blob), nombre: f.name, blob, archivo: f });
       } catch {
         rechazadas.push(`«${f.name}»: no se pudo leer la imagen`);
       }
@@ -1766,6 +1787,142 @@ export class HomePageComponent implements OnInit, OnDestroy {
   fotosSoltadas(ev: DragEvent): void {
     ev.preventDefault();
     if (ev.dataTransfer?.files?.length) void this.fotosAgregar(ev.dataTransfer.files);
+  }
+
+  // ── Visor de ajuste: zoom, mover y girar una foto ────────────────
+  // Siempre trabaja desde la foto ORIGINAL (no desde la ya reducida), así el zoom conserva calidad.
+  // Al aplicar, la foto pasa a ser una «nueva» en la misma posición; si era una de la web,
+  // la anterior se quita al guardar (queda copia en la papelera del servidor).
+
+  async fotoEditar(i: number): Promise<void> {
+    const ed = this.fotoEditor;
+    if (!ed || ed.guardando) return;
+    const it = ed.items[i];
+    this.fotoAjuste = {
+      indice: i, origen: null, fuente: null, cargando: true, error: '',
+      zoom: it.ajuste?.zoom ?? 1, ox: it.ajuste?.ox ?? 0, oy: it.ajuste?.oy ?? 0, rot: it.ajuste?.rot ?? 0
+    };
+    this.cdr.detectChanges();
+    const a = this.fotoAjuste;
+    try {
+      const origen: Blob = it.tipo === 'n'
+        ? (it.archivo ?? it.blob!)
+        : await firstValueFrom(this.http.get(
+            `${environment.baseUrl}sync/productos/${encodeURIComponent(ed.sku)}/fotos/${it.id}/original`, { responseType: 'blob' }));
+      const fuente = await createImageBitmap(origen, { imageOrientation: 'from-image' });
+      if (this.fotoAjuste !== a) { fuente.close(); return; } // se cerró mientras cargaba
+      a.origen = origen; a.fuente = fuente; a.cargando = false;
+      this.cdr.detectChanges();
+      this.ajusteRender();
+    } catch {
+      if (this.fotoAjuste !== a) return;
+      a.cargando = false;
+      a.error = 'No se pudo abrir la foto para editarla.';
+      this.cdr.detectChanges();
+    }
+  }
+
+  // Escala con que se dibuja la foto en el cuadrado (1 = tamaño real de los pixeles de la original).
+  get ajusteEscala(): number {
+    const a = this.fotoAjuste;
+    if (!a?.fuente) return 1;
+    const impar = a.rot % 2 === 1;
+    const fw = impar ? a.fuente.height : a.fuente.width;
+    const fh = impar ? a.fuente.width : a.fuente.height;
+    return Math.min(1000 / fw, 1000 / fh) * a.zoom;
+  }
+
+  // Dibuja en el lienzo de 1000×1000 (fondo blanco) exactamente lo que se publicaría.
+  ajusteRender(): void {
+    const a = this.fotoAjuste;
+    const cv = this.ajusteCanvas?.nativeElement;
+    if (!a?.fuente || !cv) return;
+    const L = 1000;
+    if (cv.width !== L) { cv.width = L; cv.height = L; }
+    const ctx = cv.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, L, L);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.save();
+    ctx.translate(L / 2 + a.ox, L / 2 + a.oy);
+    ctx.rotate(a.rot * Math.PI / 2);
+    const s = this.ajusteEscala;
+    ctx.scale(s, s);
+    ctx.drawImage(a.fuente, -a.fuente.width / 2, -a.fuente.height / 2);
+    ctx.restore();
+  }
+
+  ajusteZoomPor(factor: number): void {
+    const a = this.fotoAjuste;
+    if (!a) return;
+    a.zoom = Math.min(6, Math.max(0.5, +(a.zoom * factor).toFixed(3)));
+    this.ajusteRender();
+  }
+
+  ajusteRueda(ev: WheelEvent): void {
+    ev.preventDefault();
+    this.ajusteZoomPor(ev.deltaY < 0 ? 1.1 : 1 / 1.1);
+  }
+
+  ajusteGirar(delta: number): void {
+    const a = this.fotoAjuste;
+    if (!a) return;
+    a.rot = (a.rot + delta + 4) % 4;
+    this.ajusteRender();
+  }
+
+  ajusteRestablecer(): void {
+    const a = this.fotoAjuste;
+    if (!a) return;
+    a.zoom = 1; a.ox = 0; a.oy = 0; a.rot = 0;
+    this.ajusteRender();
+  }
+
+  ajusteBajar(ev: PointerEvent): void {
+    const a = this.fotoAjuste;
+    if (!a?.fuente) return;
+    (ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId);
+    this.ajusteArrastre = { x: ev.clientX, y: ev.clientY, ox: a.ox, oy: a.oy };
+  }
+
+  ajusteMover(ev: PointerEvent): void {
+    const a = this.fotoAjuste;
+    const d = this.ajusteArrastre;
+    if (!a || !d) return;
+    const k = 1000 / (ev.currentTarget as HTMLElement).clientWidth; // px de pantalla → px del lienzo
+    a.ox = Math.max(-3000, Math.min(3000, d.ox + (ev.clientX - d.x) * k));
+    a.oy = Math.max(-3000, Math.min(3000, d.oy + (ev.clientY - d.y) * k));
+    this.ajusteRender();
+  }
+
+  ajusteSoltar(): void {
+    this.ajusteArrastre = null;
+  }
+
+  ajusteCancelar(): void {
+    this.fotoAjuste?.fuente?.close();
+    this.fotoAjuste = null;
+    this.ajusteArrastre = null;
+  }
+
+  ajusteAplicar(): void {
+    const a = this.fotoAjuste;
+    const ed = this.fotoEditor;
+    const cv = this.ajusteCanvas?.nativeElement;
+    if (!a?.fuente || !a.origen || !ed || !cv) return;
+    this.ajusteRender();
+    cv.toBlob(blob => {
+      if (!blob || !this.fotoEditor) return;
+      const it = ed.items[a.indice];
+      if (it.tipo === 'n') URL.revokeObjectURL(it.url);
+      ed.items[a.indice] = {
+        key: 'n' + Date.now() + Math.random(), tipo: 'n', url: URL.createObjectURL(blob), nombre: it.nombre,
+        blob, archivo: a.origen!, ajuste: { zoom: a.zoom, ox: a.ox, oy: a.oy, rot: a.rot }
+      };
+      ed.exito = '';
+      this.ajusteCancelar();
+      this.cdr.detectChanges();
+    }, 'image/jpeg', 0.9);
   }
 
   fotoQuitar(i: number): void {

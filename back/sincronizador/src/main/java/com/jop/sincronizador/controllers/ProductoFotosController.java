@@ -398,6 +398,18 @@ public class ProductoFotosController {
         return b.resolveSibling(b.getFileName() + "-papelera").resolve(sku);
     }
 
+    // Extensión real del archivo según su URL (.jpg, .jpeg o .png; cualquier otra cosa → .jpg).
+    private String extensionDe(String url) {
+        try {
+            String path = url == null ? null : URI.create(url).getPath();
+            if (path != null && path.contains(".")) {
+                String ext = path.substring(path.lastIndexOf('.')).toLowerCase();
+                if (ext.equals(".jpg") || ext.equals(".jpeg") || ext.equals(".png")) return ext;
+            }
+        } catch (Exception ignored) { }
+        return ".jpg";
+    }
+
     private boolean respaldarEnPapelera(ConfigWordPress cwp, String sku, String ts, Foto f) {
         if (f.url() == null) return false;
         byte[] bytes = descargar(f.url());
@@ -426,11 +438,18 @@ public class ProductoFotosController {
             for (Foto f : finales) urls.put(f.id(), f.url());
 
             List<byte[]> contenido = new ArrayList<>();
+            List<String> extensiones = new ArrayList<>();
             for (Long id : esperado) {
                 byte[] b = nuevasPorId.get(id);
-                if (b == null) b = urls.get(id) != null ? descargar(urls.get(id)) : null;
+                String ext = ".jpg"; // las nuevas siempre quedan en JPEG
+                if (b == null) {
+                    String url = urls.get(id);
+                    b = url != null ? descargar(url) : null;
+                    ext = extensionDe(url); // las que ya estaban conservan su formato real (jpg/png)
+                }
                 if (b == null) return "La web quedó bien, pero no se pudo actualizar la carpeta del servidor (falló la descarga de una foto).";
                 contenido.add(b);
+                extensiones.add(ext);
             }
 
             Path b = base(cwp);
@@ -450,7 +469,7 @@ public class ProductoFotosController {
                 }
             }
             for (int i = 0; i < contenido.size(); i++) {
-                Files.write(carpeta.resolve(String.format("%s_%02d.jpg", sku, i + 1)), contenido.get(i));
+                Files.write(carpeta.resolve(String.format("%s_%02d%s", sku, i + 1, extensiones.get(i))), contenido.get(i));
             }
             return null;
         } catch (Exception e) {

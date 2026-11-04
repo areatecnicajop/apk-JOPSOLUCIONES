@@ -70,6 +70,11 @@ public class SyncProductosController {
         Map<String, Categorie> categoryMap = categorias.stream()
             .collect(Collectors.toMap(Categorie::getLaudusId, c -> c, (a, b) -> a));
         Map<String, Integer> stockMap = stockMap();
+        // Filas completas de stock: aportan "cambió en la última actualización" y el valor anterior.
+        Map<String, LaudusStock> stockRows = new HashMap<>();
+        for (LaudusStock s : stockRepository.findAll()) {
+            if (s.getSku() != null) stockRows.putIfAbsent(s.getSku(), s);
+        }
 
         List<Map<String, Object>> result = productos.stream()
             .filter(p -> p.getSku() != null && !p.getSku().isBlank())
@@ -86,6 +91,10 @@ public class SyncProductosController {
                 item.put("forceZeroStock", forzado);
                 item.put("stockEfectivo", forzado ? 0 : stockMap.getOrDefault(p.getSku(), 0));
                 item.put("stockWebEnviado", p.getStockWebEnviado());
+                LaudusStock row = stockRows.get(p.getSku());
+                boolean cambio = row != null && Boolean.TRUE.equals(row.getCambioUltima());
+                item.put("stockCambio", cambio);
+                item.put("stockAnterior", cambio ? row.getStockAnterior() : null);
                 Categorie cat = p.getProductCategoryId() != null ? categoryMap.get(p.getProductCategoryId()) : null;
                 item.put("categoryName", cat != null ? cat.getLaudusName() : null);
                 item.put("enWooCommerce", p.getIdWP() != null && !p.getIdWP().isBlank());

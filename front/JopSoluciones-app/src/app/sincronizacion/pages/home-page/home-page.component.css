@@ -2310,6 +2310,23 @@
 
 .jop-mat-table .mat-column-sel { width: 44px; min-width: 44px; }
 
+.sp-select { width: auto; min-width: 190px; padding: 4px 8px; font-size: 12px; }
+.sp-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+  margin-right: 6px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.sp-badge-noweb  { background: rgba(217, 83, 79, 0.18); color: #e8706c; border: 1px solid rgba(217, 83, 79, 0.5); }
+.sp-badge-cambio { background: rgba(240, 173, 78, 0.18); color: #f0ad4e; border: 1px solid rgba(240, 173, 78, 0.5); }
+.sp-stock-ant { color: #8a93a6; font-size: 12px; margin: 0 4px; }
+.jop-mat-table tr.sp-row-cambio td { background: rgba(240, 173, 78, 0.07); }
+.jop-mat-table tr.sp-row-noweb td { opacity: 0.8; }
+
 /* Botón "Configurar" en verde cuando el producto ya está en Falabella —
    más confiable de ver que el punto de estado. */
 .fp-btn-en-falabella {

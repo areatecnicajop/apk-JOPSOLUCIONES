@@ -229,23 +229,31 @@ public List<String> updateStockLaudus(List<LaudusStock> stocks) {
     // Obtener los SKUs de los nuevos datos
     List<String> skus = stocks.stream().map(LaudusStock::getSku).toList();
 
-    // Obtener los datos actuales de la base de datos
-    List<LaudusStock> existingStocks = writeRepositoryStock.findAllById(skus);
+    // Obtener los datos actuales de la base de datos (todas las filas: también hay que
+    // limpiar la marca "cambió" de los SKU que ya no cambian o que Laudus dejó de traer)
+    List<LaudusStock> existingStocks = writeRepositoryStock.findAll();
 
     // Convertir los datos actuales en un mapa para comparación rápida
-    Map<String, Integer> stockMap = existingStocks.stream()
-        .collect(Collectors.toMap(LaudusStock::getSku, LaudusStock::getStock));
+    Map<String, LaudusStock> existingMap = existingStocks.stream()
+        .filter(s -> s.getSku() != null)
+        .collect(Collectors.toMap(LaudusStock::getSku, s -> s, (a, b) -> a));
 
     // Listas para cambios detectados
     List<LaudusStock> updatedStocks = new ArrayList<>();
     List<String> changedProducts = new ArrayList<>();
-    List<String> skusChanged = new ArrayList<>(); 
+    List<String> skusChanged = new ArrayList<>();
+    Set<String> skusToSave = new java.util.HashSet<>();
 
     // Comparar y detectar cambios en el stock
     for (LaudusStock newStock : stocks) {
-        Integer currentStock = stockMap.get(newStock.getSku());
+        LaudusStock current = existingMap.get(newStock.getSku());
+        Integer currentStock = current == null ? null : current.getStock();
 
         if (currentStock == null || !currentStock.equals(newStock.getStock())) {
+            // Guardar de dónde venía y marcarlo como "cambió en la última actualización"
+            newStock.setStockAnterior(currentStock);
+            newStock.setCambioUltima(true);
+            skusToSave.add(newStock.getSku());
             updatedStocks.add(newStock);
             String anterior = (currentStock == null) ? "—" : String.valueOf(currentStock);
             String nuevo    = String.valueOf(newStock.getStock());
@@ -255,7 +263,17 @@ public List<String> updateStockLaudus(List<LaudusStock> stocks) {
         }
     }
 
-    // Guardar solo los productos cuyo stock cambió
+    // Los que habían quedado marcados "cambió" en la actualización anterior y ahora no cambiaron
+    // pierden la marca (solo se ven los de la última actualización).
+    for (LaudusStock old : existingStocks) {
+        if (Boolean.TRUE.equals(old.getCambioUltima()) && !skusToSave.contains(old.getSku())) {
+            old.setCambioUltima(false);
+            old.setStockAnterior(null);
+            updatedStocks.add(old);
+        }
+    }
+
+    // Guardar solo los productos cuyo stock cambió (y los que perdieron la marca)
     if (!updatedStocks.isEmpty()) {
         writeRepositoryStock.saveAll(updatedStocks);
     }

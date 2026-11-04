@@ -78,6 +78,8 @@ interface SyncProductoRow {
   forceZeroStock: boolean;
   stockEfectivo: number;
   stockWebEnviado: number | null;
+  stockCambio: boolean;          // cambió de stock en la última actualización desde Laudus
+  stockAnterior: number | null;  // stock que tenía antes de esa actualización (null = no existía)
 }
 
 interface LaudusCustomField {
@@ -334,6 +336,8 @@ export class HomePageComponent implements OnInit, OnDestroy {
 
   // Stock: selección y envío a WooCommerce (solo stock, ver SyncProductosController.enviarStock)
   syncSoloDiferencias = false;
+  syncSoloCambiaron = false;
+  syncFiltroWeb: 'todos' | 'en-web' | 'no-web' = 'todos';
   syncSeleccion = new Set<string>();
   syncActualizandoStock = false;
   syncEnviandoStock = false;
@@ -1446,11 +1450,16 @@ export class HomePageComponent implements OnInit, OnDestroy {
 
   // ── Sincronizador: Productos ─────────────────────────────────────
 
-  loadSyncProductos(): void {
+  loadSyncProductos(alCargar?: () => void): void {
     this.syncProductosLoading = true;
     this.syncProductosError = '';
     this.http.get<SyncProductoRow[]>(`${environment.baseUrl}sync/productos`).subscribe({
-      next: rows => { this.syncProductos = rows; this.syncProductosLoading = false; this.cdr.detectChanges(); },
+      next: rows => {
+        this.syncProductos = rows;
+        this.syncProductosLoading = false;
+        alCargar?.();
+        this.cdr.detectChanges();
+      },
       error: () => { this.syncProductosError = 'No se pudo cargar el catálogo'; this.syncProductosLoading = false; this.cdr.detectChanges(); }
     });
   }
@@ -1458,6 +1467,8 @@ export class HomePageComponent implements OnInit, OnDestroy {
   get filteredSyncProductos(): SyncProductoRow[] {
     const q = this.syncProductosSearch.toLowerCase();
     return this.syncProductos.filter(p =>
+      (this.syncFiltroWeb === 'todos' || (this.syncFiltroWeb === 'en-web') === p.enWooCommerce) &&
+      (!this.syncSoloCambiaron || p.stockCambio) &&
       (!this.syncSoloDiferencias || this.syncNecesitaEnvio(p)) &&
       (!q ||
         p.sku.toLowerCase().includes(q) ||
@@ -1492,6 +1503,24 @@ export class HomePageComponent implements OnInit, OnDestroy {
     return sel.length > 0 && sel.every(p => this.syncSeleccion.has(p.sku));
   }
 
+  get syncEnWebCount(): number {
+    return this.syncProductos.filter(p => p.enWooCommerce).length;
+  }
+
+  get syncNoWebCount(): number {
+    return this.syncProductos.filter(p => !p.enWooCommerce).length;
+  }
+
+  get syncCambiaronCount(): number {
+    return this.syncProductos.filter(p => p.stockCambio).length;
+  }
+
+  // Variación del stock interno respecto de antes de la última actualización (null si no cambió o no había dato previo).
+  syncVariacion(p: SyncProductoRow): number | null {
+    if (!p.stockCambio || p.stockAnterior === null) return null;
+    return p.stock - p.stockAnterior;
+  }
+
   get syncConDiferenciaCount(): number {
     return this.syncProductos.filter(p => this.syncNecesitaEnvio(p)).length;
   }
@@ -1520,12 +1549,17 @@ export class HomePageComponent implements OnInit, OnDestroy {
     this.syncStockMsg = '';
     this.syncStockMsgError = false;
     this.http.post<{ status: string; updated: number }>(`${environment.baseUrl}sync/stock`, {}).subscribe({
-      next: res => {
+      next: () => {
         this.syncActualizandoStock = false;
-        this.syncStockMsg = res.updated > 0
-          ? `Stock interno actualizado: ${res.updated} producto(s) cambiaron.`
-          : 'Stock interno al día: Laudus no reporta cambios.';
-        this.loadSyncProductos();
+        // El resumen se arma con la tabla recargada: ahí vienen marcados los que cambiaron.
+        this.loadSyncProductos(() => {
+          const cambiaron = this.syncProductos.filter(p => p.stockCambio);
+          const sinWeb = cambiaron.filter(p => !p.enWooCommerce).length;
+          this.syncStockMsg = cambiaron.length === 0
+            ? 'Stock interno al día: ningún producto cambió desde la actualización anterior.'
+            : `Stock interno actualizado: ${cambiaron.length} producto(s) cambiaron` +
+              (sinWeb > 0 ? `, ${sinWeb} de ellos NO están en la web.` : ', todos están en la web.');
+        });
       },
       error: err => {
         this.syncActualizandoStock = false;

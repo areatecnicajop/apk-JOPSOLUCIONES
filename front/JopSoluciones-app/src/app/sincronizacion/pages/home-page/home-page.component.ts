@@ -361,16 +361,16 @@ export class HomePageComponent implements OnInit, OnDestroy {
   syncProductosColumns = ['sel', 'estado', 'sku', 'name', 'price', 'stock', 'forzar', 'efectivo', 'enviado', 'diferencia', 'fotos', 'acciones'];
 
   // Stock: selección y envío a WooCommerce (solo stock, ver SyncProductosController.enviarStock)
-  syncSoloDiferencias = false;
-  syncSoloCambiaron = false;
-  syncFiltroFotos: 'todas' | 'sin' | 'con' = 'todas';
+  // Filtros tipo Excel por columna: col → valores permitidos (sin entrada = sin filtro).
+  syncColFiltros: Record<string, Set<string>> = {};
+  // Menú de filtro abierto desde el título de una columna (posición fija en pantalla para que la tabla no lo recorte).
+  syncMenu: { col: string; top: number; left: number; maxHeight: number; busca: string; valores: { valor: string; n: number }[] } | null = null;
   // SKU → cantidad de fotos en la web (null mientras carga o si no se pudo consultar)
   syncFotosConteo: Record<string, number> | null = null;
   syncFotosCargando = false;
   syncFotosError = '';
   fotoEditor: FotoEditor | null = null;
   fotoDragIndex: number | null = null;
-  syncFiltroWeb: 'todos' | 'en-web' | 'no-web' = 'todos';
   syncSeleccion = new Set<string>();
   syncActualizandoStock = false;
   syncEnviandoStock = false;
@@ -1500,15 +1500,140 @@ export class HomePageComponent implements OnInit, OnDestroy {
 
   get filteredSyncProductos(): SyncProductoRow[] {
     const q = this.syncProductosSearch.toLowerCase();
+    const cols = Object.keys(this.syncColFiltros);
     return this.syncProductos.filter(p =>
-      (this.syncFiltroWeb === 'todos' || (this.syncFiltroWeb === 'en-web') === p.enWooCommerce) &&
-      (!this.syncSoloCambiaron || p.stockCambio) &&
-      (this.syncFiltroFotos === 'todas' || (this.syncFiltroFotos === 'sin' ? this.fotosDe(p) === 0 : (this.fotosDe(p) ?? 0) > 0)) &&
-      (!this.syncSoloDiferencias || this.syncNecesitaEnvio(p)) &&
+      cols.every(c => this.syncValoresDe(p, c).some(v => this.syncColFiltros[c].has(v))) &&
       (!q ||
         p.sku.toLowerCase().includes(q) ||
         p.name?.toLowerCase().includes(q) ||
         (p.categoryName?.toLowerCase().includes(q) ?? false)));
+  }
+
+  // ── Filtros tipo Excel desde el título de cada columna ───────────
+  // Cada columna ofrece la lista de sus valores (con cuántos productos tienen cada uno), con casillas.
+  // Sin filtro = todos los valores marcados. Los filtros de varias columnas se combinan (Y).
+
+  readonly syncTitulosFiltro: Record<string, string> = {
+    estado: 'Web', sku: 'SKU', name: 'Nombre', price: 'Precio', stock: 'Stock interno',
+    forzar: 'Forzar 0', efectivo: 'A enviar', enviado: 'En web (último envío)', diferencia: 'Diferencia', fotos: 'Fotos'
+  };
+  private readonly SYNC_CAMBIO = '★ Cambió en la última actualización';
+
+  // Valor(es) que tiene un producto en una columna (un producto puede tener más de uno, p. ej. stock + «Cambió»).
+  syncValoresDe(p: SyncProductoRow, col: string): string[] {
+    switch (col) {
+      case 'estado': return [p.enWooCommerce ? 'En la web' : 'No está en la web'];
+      case 'sku': return [p.sku];
+      case 'name': return [p.name || '(sin nombre)'];
+      case 'price': return [String(p.price)];
+      case 'stock': return [...(p.stockCambio ? [this.SYNC_CAMBIO] : []), p.stockConocido ? String(p.stock) : '—'];
+      case 'forzar': return [p.forceZeroStock ? 'Sí' : 'No'];
+      case 'efectivo': return [p.stockConocido ? String(p.stockEfectivo) : '—'];
+      case 'enviado': return [p.stockWebEnviado === null ? 'Nunca enviado' : String(p.stockWebEnviado)];
+      case 'diferencia': {
+        if (!this.syncPuedeSeleccionar(p)) return ['—'];
+        const d = this.syncDiferencia(p);
+        return [d === null ? 'sin enviar' : d === 0 ? '✓ igual' : d > 0 ? '▲ sube' : '▼ baja'];
+      }
+      case 'fotos': {
+        if (!p.enWooCommerce) return ['— (no está en la web)'];
+        const n = this.fotosDe(p);
+        return [n === null ? '… (sin dato)' : n === 0 ? '0 · sin fotos' : n === 1 ? '1 foto' : `${n} fotos`];
+      }
+      default: return [];
+    }
+  }
+
+  syncFiltroActivo(col: string): boolean {
+    return !!this.syncColFiltros[col];
+  }
+
+  syncAbrirMenu(col: string, ev: MouseEvent): void {
+    ev.stopPropagation();
+    if (this.syncMenu?.col === col) { this.syncMenu = null; return; }
+    const cuenta = new Map<string, number>();
+    for (const p of this.syncProductos) {
+      for (const v of this.syncValoresDe(p, col)) cuenta.set(v, (cuenta.get(v) ?? 0) + 1);
+    }
+    const valores = Array.from(cuenta, ([valor, n]) => ({ valor, n })).sort((a, b) => {
+      const sa = a.valor.startsWith('★') ? 0 : 1, sb = b.valor.startsWith('★') ? 0 : 1;
+      return sa - sb || a.valor.localeCompare(b.valor, 'es', { numeric: true });
+    });
+    const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+    const top = r.bottom + 4;
+    this.syncMenu = {
+      col, busca: '', valores,
+      top, left: Math.max(8, Math.min(r.left, window.innerWidth - 300)),
+      maxHeight: Math.max(220, window.innerHeight - top - 12)
+    };
+  }
+
+  syncMenuVisibles(): { valor: string; n: number }[] {
+    const m = this.syncMenu;
+    if (!m) return [];
+    const q = m.busca.trim().toLowerCase();
+    return q ? m.valores.filter(v => v.valor.toLowerCase().includes(q)) : m.valores;
+  }
+
+  syncMenuSel(valor: string): boolean {
+    const f = this.syncMenu ? this.syncColFiltros[this.syncMenu.col] : undefined;
+    return !f || f.has(valor);
+  }
+
+  get syncMenuTodosMarcado(): boolean {
+    const vis = this.syncMenuVisibles();
+    return vis.length > 0 && vis.every(v => this.syncMenuSel(v.valor));
+  }
+
+  get syncMenuMarcados(): number {
+    return this.syncMenu ? this.syncMenu.valores.filter(v => this.syncMenuSel(v.valor)).length : 0;
+  }
+
+  // Guarda el conjunto elegido; si quedan marcados todos los valores, equivale a «sin filtro».
+  private syncGuardarFiltro(col: string, set: Set<string>, todos: string[]): void {
+    if (todos.every(v => set.has(v))) delete this.syncColFiltros[col];
+    else this.syncColFiltros[col] = set;
+  }
+
+  syncMenuToggle(valor: string): void {
+    const m = this.syncMenu;
+    if (!m) return;
+    const todos = m.valores.map(v => v.valor);
+    const set = new Set(this.syncColFiltros[m.col] ?? todos);
+    if (set.has(valor)) set.delete(valor); else set.add(valor);
+    this.syncGuardarFiltro(m.col, set, todos);
+  }
+
+  // «Seleccionar todo» actúa sobre lo que se ve en la lista (respeta lo escrito en la búsqueda del menú).
+  syncMenuToggleTodos(): void {
+    const m = this.syncMenu;
+    if (!m) return;
+    const todos = m.valores.map(v => v.valor);
+    const marcado = this.syncMenuTodosMarcado;
+    const set = new Set(this.syncColFiltros[m.col] ?? todos);
+    this.syncMenuVisibles().forEach(v => { if (marcado) set.delete(v.valor); else set.add(v.valor); });
+    this.syncGuardarFiltro(m.col, set, todos);
+  }
+
+  syncLimpiarFiltroCol(col: string): void {
+    delete this.syncColFiltros[col];
+  }
+
+  syncLimpiarFiltros(): void {
+    this.syncColFiltros = {};
+    this.syncMenu = null;
+  }
+
+  // Filtros activos, para mostrarlos como «chips» arriba de la tabla.
+  get syncFiltrosActivos(): { col: string; titulo: string; etiqueta: string }[] {
+    return Object.keys(this.syncColFiltros).map(c => {
+      const vals = Array.from(this.syncColFiltros[c]);
+      return {
+        col: c,
+        titulo: this.syncTitulosFiltro[c],
+        etiqueta: vals.length === 0 ? '(ninguno)' : vals.length <= 3 ? vals.join(', ') : `${vals.length} valores`
+      };
+    });
   }
 
   // ── Fotos: resumen por producto y editor ─────────────────────────

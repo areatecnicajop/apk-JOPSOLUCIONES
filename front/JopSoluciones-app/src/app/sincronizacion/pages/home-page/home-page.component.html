@@ -684,35 +684,23 @@
         </div>
         <input class="config-input" style="width:100%" [(ngModel)]="syncProductosSearch" placeholder="Buscar por SKU, nombre o categoría...">
 
-        <div class="sp-selection-bar">
-          <label class="sp-check-label">Mostrar:
-            <select class="config-input sp-select" [(ngModel)]="syncFiltroWeb">
-              <option value="todos">Todos ({{ syncProductos.length }})</option>
-              <option value="en-web">Solo en la web ({{ syncEnWebCount }})</option>
-              <option value="no-web">Solo NO en la web ({{ syncNoWebCount }})</option>
-            </select>
-          </label>
-          <label class="sp-check-label">
-            <input type="checkbox" [(ngModel)]="syncSoloCambiaron"> Solo los que cambiaron en la última actualización ({{ syncCambiaronCount }})
-          </label>
-          <label class="sp-check-label">Fotos:
-            <select class="config-input sp-select" [(ngModel)]="syncFiltroFotos" [disabled]="!syncFotosConteo">
-              <option value="todas">Todas</option>
-              <option value="sin">Sin fotos en la web ({{ syncSinFotosCount }})</option>
-              <option value="con">Con fotos</option>
-            </select>
-          </label>
+        <div class="sp-chips" *ngIf="syncFiltrosActivos.length > 0 || syncFotosCargando || syncFotosError">
+          <span class="sp-chips-label" *ngIf="syncFiltrosActivos.length > 0">Filtros:</span>
+          <span class="sp-chip" *ngFor="let f of syncFiltrosActivos">
+            <b>{{ f.titulo }}:</b> {{ f.etiqueta }}
+            <button (click)="syncLimpiarFiltroCol(f.col)" title="Quitar este filtro">✕</button>
+          </span>
+          <a class="sp-chips-clear" *ngIf="syncFiltrosActivos.length > 1" href="javascript:void(0)" (click)="syncLimpiarFiltros()">Quitar todos</a>
           <span class="fp-hint" *ngIf="syncFotosCargando">⏳ Consultando fotos en la web...</span>
           <span class="fp-hint sp-msg-error" *ngIf="syncFotosError">⚠️ {{ syncFotosError }}
             <a href="javascript:void(0)" (click)="cargarResumenFotos()">Reintentar</a></span>
         </div>
+        <div class="fp-hint" *ngIf="syncFiltrosActivos.length === 0 && !syncFotosCargando && !syncFotosError">💡 Para filtrar, haz clic en el título de cualquier columna (como en Excel).</div>
+
         <div class="sp-selection-bar">
           <button class="refresh-btn" (click)="syncToggleTodos()" [disabled]="syncEnviandoStock || syncSeleccionables.length === 0">
             {{ syncTodosSeleccionados ? '☐ Deseleccionar todo' : '☑ Seleccionar todo' }}
           </button>
-          <label class="sp-check-label">
-            <input type="checkbox" [(ngModel)]="syncSoloDiferencias"> Solo con diferencia respecto a lo enviado a la web ({{ syncConDiferenciaCount }})
-          </label>
           <span class="sp-sel-count">{{ syncSeleccion.size }} seleccionado(s)</span>
           <button class="refresh-btn" (click)="syncLimpiarSeleccion()" [disabled]="syncEnviandoStock || syncSeleccion.size === 0">Limpiar</button>
           <button class="modal-btn modal-yes sp-send-btn" (click)="enviarStockSeleccionados()" [disabled]="syncEnviandoStock || syncSeleccion.size === 0">
@@ -742,27 +730,27 @@
             </td>
           </ng-container>
           <ng-container matColumnDef="estado">
-            <th mat-header-cell *matHeaderCellDef></th>
+            <th mat-header-cell *matHeaderCellDef><button class="sp-hf" [class.sp-hf-on]="syncFiltroActivo('estado')" (click)="syncAbrirMenu('estado', $event)">Web <span class="sp-hf-ico">{{ syncFiltroActivo('estado') ? '⏷' : '▾' }}</span></button></th>
             <td mat-cell *matCellDef="let p">
               <span class="fp-dot" [class.fp-dot-green]="p.enWooCommerce" [class.fp-dot-red]="!p.enWooCommerce"></span>
             </td>
           </ng-container>
           <ng-container matColumnDef="sku">
-            <th mat-header-cell *matHeaderCellDef>SKU</th>
+            <th mat-header-cell *matHeaderCellDef><button class="sp-hf" [class.sp-hf-on]="syncFiltroActivo('sku')" (click)="syncAbrirMenu('sku', $event)">SKU <span class="sp-hf-ico">{{ syncFiltroActivo('sku') ? '⏷' : '▾' }}</span></button></th>
             <td mat-cell *matCellDef="let p" class="fp-sku">{{ p.sku }}</td>
           </ng-container>
           <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef>Nombre</th>
+            <th mat-header-cell *matHeaderCellDef><button class="sp-hf" [class.sp-hf-on]="syncFiltroActivo('name')" (click)="syncAbrirMenu('name', $event)">Nombre <span class="sp-hf-ico">{{ syncFiltroActivo('name') ? '⏷' : '▾' }}</span></button></th>
             <td mat-cell *matCellDef="let p" class="jop-cell-truncate">
               <span class="sp-badge sp-badge-noweb" *ngIf="!p.enWooCommerce" title="Este producto no existe en WooCommerce: no se le puede enviar stock">No está en la web</span>{{ p.name }}
             </td>
           </ng-container>
           <ng-container matColumnDef="price">
-            <th mat-header-cell *matHeaderCellDef>Precio</th>
+            <th mat-header-cell *matHeaderCellDef><button class="sp-hf" [class.sp-hf-on]="syncFiltroActivo('price')" (click)="syncAbrirMenu('price', $event)">Precio <span class="sp-hf-ico">{{ syncFiltroActivo('price') ? '⏷' : '▾' }}</span></button></th>
             <td mat-cell *matCellDef="let p">${{ p.price }}</td>
           </ng-container>
           <ng-container matColumnDef="stock">
-            <th mat-header-cell *matHeaderCellDef matTooltip="Stock de Laudus. Si cambió en la última actualización se ve el valor anterior">Stock interno</th>
+            <th mat-header-cell *matHeaderCellDef matTooltip="Stock de Laudus. Si cambió en la última actualización se ve el valor anterior"><button class="sp-hf" [class.sp-hf-on]="syncFiltroActivo('stock')" (click)="syncAbrirMenu('stock', $event)">Stock interno <span class="sp-hf-ico">{{ syncFiltroActivo('stock') ? '⏷' : '▾' }}</span></button></th>
             <td mat-cell *matCellDef="let p">
               <ng-container *ngIf="p.stockCambio; else stockSimple">
                 <span class="sp-badge sp-badge-cambio">Cambió</span>
@@ -776,21 +764,21 @@
             </td>
           </ng-container>
           <ng-container matColumnDef="forzar">
-            <th mat-header-cell *matHeaderCellDef matTooltip="Si está marcado, a la web se envía stock 0 aunque haya existencias">Forzar 0</th>
+            <th mat-header-cell *matHeaderCellDef matTooltip="Si está marcado, a la web se envía stock 0 aunque haya existencias"><button class="sp-hf" [class.sp-hf-on]="syncFiltroActivo('forzar')" (click)="syncAbrirMenu('forzar', $event)">Forzar 0 <span class="sp-hf-ico">{{ syncFiltroActivo('forzar') ? '⏷' : '▾' }}</span></button></th>
             <td mat-cell *matCellDef="let p">
               <input type="checkbox" [checked]="p.forceZeroStock" (change)="toggleForceZeroSync(p, $any($event.target).checked)" [disabled]="syncEnviandoStock">
             </td>
           </ng-container>
           <ng-container matColumnDef="efectivo">
-            <th mat-header-cell *matHeaderCellDef>A enviar</th>
+            <th mat-header-cell *matHeaderCellDef><button class="sp-hf" [class.sp-hf-on]="syncFiltroActivo('efectivo')" (click)="syncAbrirMenu('efectivo', $event)">A enviar <span class="sp-hf-ico">{{ syncFiltroActivo('efectivo') ? '⏷' : '▾' }}</span></button></th>
             <td mat-cell *matCellDef="let p">{{ p.stockConocido ? p.stockEfectivo : '—' }}</td>
           </ng-container>
           <ng-container matColumnDef="enviado">
-            <th mat-header-cell *matHeaderCellDef matTooltip="Último stock enviado a la web desde esta pestaña">En web (último envío)</th>
+            <th mat-header-cell *matHeaderCellDef matTooltip="Último stock enviado a la web desde esta pestaña"><button class="sp-hf" [class.sp-hf-on]="syncFiltroActivo('enviado')" (click)="syncAbrirMenu('enviado', $event)">En web (último envío) <span class="sp-hf-ico">{{ syncFiltroActivo('enviado') ? '⏷' : '▾' }}</span></button></th>
             <td mat-cell *matCellDef="let p">{{ p.stockWebEnviado ?? '—' }}</td>
           </ng-container>
           <ng-container matColumnDef="diferencia">
-            <th mat-header-cell *matHeaderCellDef>Diferencia</th>
+            <th mat-header-cell *matHeaderCellDef><button class="sp-hf" [class.sp-hf-on]="syncFiltroActivo('diferencia')" (click)="syncAbrirMenu('diferencia', $event)">Diferencia <span class="sp-hf-ico">{{ syncFiltroActivo('diferencia') ? '⏷' : '▾' }}</span></button></th>
             <td mat-cell *matCellDef="let p">
               <ng-container *ngIf="syncPuedeSeleccionar(p)">
                 <span *ngIf="syncDiferencia(p) === null" class="sp-diff sp-diff-pend">sin enviar</span>
@@ -802,7 +790,7 @@
             </td>
           </ng-container>
           <ng-container matColumnDef="fotos">
-            <th mat-header-cell *matHeaderCellDef matTooltip="Fotos que tiene el producto en la web. Clic para editarlas">Fotos</th>
+            <th mat-header-cell *matHeaderCellDef matTooltip="Fotos que tiene el producto en la web. Clic en una fila para editarlas"><button class="sp-hf" [class.sp-hf-on]="syncFiltroActivo('fotos')" (click)="syncAbrirMenu('fotos', $event)">Fotos <span class="sp-hf-ico">{{ syncFiltroActivo('fotos') ? '⏷' : '▾' }}</span></button></th>
             <td mat-cell *matCellDef="let p">
               <button class="sp-fotos-btn" [class.sp-fotos-cero]="fotosDe(p) === 0"
                       [disabled]="!p.enWooCommerce"
@@ -832,6 +820,31 @@
         <div *ngIf="filteredSyncProductos.length === 0" class="console-empty">Sin resultados.</div>
       </div>
     </div>
+
+    <!-- ====== MENÚ DE FILTRO (estilo Excel) al hacer clic en el título de una columna ====== -->
+    <ng-container *ngIf="syncMenu">
+      <div class="sp-hf-backdrop" (click)="syncMenu = null"></div>
+      <div class="sp-hf-menu" [style.top.px]="syncMenu.top" [style.left.px]="syncMenu.left" [style.maxHeight.px]="syncMenu.maxHeight" (click)="$event.stopPropagation()">
+        <div class="sp-hf-title">Filtrar · {{ syncTitulosFiltro[syncMenu.col] }}</div>
+        <input class="config-input sp-hf-search" placeholder="Buscar en la lista..." [(ngModel)]="syncMenu.busca">
+        <label class="sp-hf-row sp-hf-all">
+          <input type="checkbox" [checked]="syncMenuTodosMarcado" (change)="syncMenuToggleTodos()"> <span class="sp-hf-val">(Seleccionar todo)</span>
+        </label>
+        <div class="sp-hf-list">
+          <label class="sp-hf-row" *ngFor="let v of syncMenuVisibles()">
+            <input type="checkbox" [checked]="syncMenuSel(v.valor)" (change)="syncMenuToggle(v.valor)">
+            <span class="sp-hf-val">{{ v.valor }}</span>
+            <span class="sp-hf-n">{{ v.n }}</span>
+          </label>
+          <div class="fp-hint" *ngIf="syncMenuVisibles().length === 0">Sin coincidencias</div>
+        </div>
+        <div class="sp-hf-foot">
+          <span class="sp-hf-info">{{ syncMenuMarcados }} de {{ syncMenu.valores.length }} marcados · {{ filteredSyncProductos.length }} filas</span>
+          <button (click)="syncLimpiarFiltroCol(syncMenu.col)" [disabled]="!syncFiltroActivo(syncMenu.col)">Limpiar filtro</button>
+          <button class="sp-hf-ok" (click)="syncMenu = null">Listo</button>
+        </div>
+      </div>
+    </ng-container>
 
     <!-- ====== MODAL: Editor de fotos del producto ====== -->
     <div class="modal-overlay" *ngIf="fotoEditor">

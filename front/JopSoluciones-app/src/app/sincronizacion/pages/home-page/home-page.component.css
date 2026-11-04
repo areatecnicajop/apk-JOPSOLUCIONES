@@ -2286,6 +2286,30 @@
   padding-left: 20px;
 }
 
+/* ─── Productos: stock, selección y envío a la web ─────────────────────── */
+.sp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.sp-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.sp-check-label { color: #c0c8d8; font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.sp-sel-count { color: #7ab4e0; font-size: 12px; font-weight: 600; }
+.sp-send-btn { margin-left: auto; }
+.sp-msg-error { color: #d9534f; }
+
+.sp-diff { font-weight: 700; font-size: 12px; white-space: nowrap; }
+.sp-diff-ok   { color: #5cb85c; }
+.sp-diff-up   { color: #f0ad4e; }
+.sp-diff-down { color: #d9534f; }
+.sp-diff-pend { color: #7ab4e0; font-weight: 600; }
+
+.jop-mat-table .mat-column-sel { width: 44px; min-width: 44px; }
+
 /* Botón "Configurar" en verde cuando el producto ya está en Falabella —
    más confiable de ver que el punto de estado. */
 .fp-btn-en-falabella {

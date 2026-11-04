@@ -19,9 +19,6 @@
           <button *ngIf="showPanelSync" class="nav-item" [class.selected]="activeView === 'sync'" (click)="setView('sync')">
             🔄 Panel de Sync
           </button>
-          <button class="nav-item" [class.selected]="activeView === 'stock-manual'" (click)="setView('stock-manual')">
-            📦 Stock Manual
-          </button>
           <button class="nav-item" [class.selected]="activeView === 'sync-productos'" (click)="setView('sync-productos'); loadSyncProductos()">
             🧾 Productos
           </button>
@@ -666,11 +663,6 @@
       <app-productos-apk></app-productos-apk>
     </div>
 
-    <!-- ====== VISTA: STOCK MANUAL ====== -->
-    <div *ngIf="activeView === 'stock-manual'" class="view-container" style="padding:0;overflow:hidden;display:flex;flex-direction:column;">
-      <app-stock-manual></app-stock-manual>
-    </div>
-
     <!-- ====== VISTA: SYNC PRODUCTOS (estado + preview WooCommerce) ====== -->
     <div *ngIf="activeView === 'sync-productos'" class="view-container">
       <div class="view-header">
@@ -680,12 +672,33 @@
 
       <div class="filters-card">
         <div class="filters-header">
-          <span class="card-title" style="margin:0">Buscar</span>
-          <button class="refresh-btn" (click)="loadSyncProductos()" [disabled]="syncProductosLoading">
-            {{ syncProductosLoading ? '⏳' : '🔄' }} Actualizar
-          </button>
+          <span class="card-title" style="margin:0">Stock</span>
+          <div class="sp-actions">
+            <button class="refresh-btn" (click)="actualizarStockInterno()" [disabled]="syncActualizandoStock || syncEnviandoStock || syncProductosLoading">
+              {{ syncActualizandoStock ? '⏳ Consultando Laudus...' : '⬇️ Actualizar stock interno' }}
+            </button>
+            <button class="refresh-btn" (click)="loadSyncProductos()" [disabled]="syncProductosLoading || syncEnviandoStock">
+              {{ syncProductosLoading ? '⏳' : '🔄' }} Recargar tabla
+            </button>
+          </div>
         </div>
         <input class="config-input" style="width:100%" [(ngModel)]="syncProductosSearch" placeholder="Buscar por SKU, nombre o categoría...">
+
+        <div class="sp-selection-bar">
+          <button class="refresh-btn" (click)="syncToggleTodos()" [disabled]="syncEnviandoStock || syncSeleccionables.length === 0">
+            {{ syncTodosSeleccionados ? '☐ Deseleccionar todo' : '☑ Seleccionar todo' }}
+          </button>
+          <label class="sp-check-label">
+            <input type="checkbox" [(ngModel)]="syncSoloDiferencias"> Solo con diferencia ({{ syncConDiferenciaCount }})
+          </label>
+          <span class="sp-sel-count">{{ syncSeleccion.size }} seleccionado(s)</span>
+          <button class="refresh-btn" (click)="syncLimpiarSeleccion()" [disabled]="syncEnviandoStock || syncSeleccion.size === 0">Limpiar</button>
+          <button class="modal-btn modal-yes sp-send-btn" (click)="enviarStockSeleccionados()" [disabled]="syncEnviandoStock || syncSeleccion.size === 0">
+            {{ syncEnviandoStock ? '⏳ ' + syncEnvioProgreso : '📤 Enviar a la web (' + syncSeleccion.size + ')' }}
+          </button>
+        </div>
+        <div class="fp-hint" *ngIf="syncStockMsg" [class.sp-msg-error]="syncStockMsgError">{{ syncStockMsgError ? '⚠️' : '✅' }} {{ syncStockMsg }}</div>
+        <div class="fp-hint">El envío solo modifica el stock en WooCommerce (nada de nombre, precio ni descripciones). Si un producto tiene «Forzar 0», se envía 0.</div>
       </div>
 
       <div *ngIf="syncProductosLoading" class="orders-loading">
@@ -696,6 +709,16 @@
 
       <div *ngIf="!syncProductosLoading && !syncProductosError" class="mat-table-card">
         <table mat-table [dataSource]="filteredSyncProductos" class="jop-mat-table">
+          <ng-container matColumnDef="sel">
+            <th mat-header-cell *matHeaderCellDef>
+              <input type="checkbox" [checked]="syncTodosSeleccionados" (change)="syncToggleTodos()" [disabled]="syncEnviandoStock" title="Seleccionar todo lo visible">
+            </th>
+            <td mat-cell *matCellDef="let p">
+              <input type="checkbox" [checked]="syncSeleccion.has(p.sku)" (change)="syncToggleSel(p)"
+                     [disabled]="syncEnviandoStock || !syncPuedeSeleccionar(p)"
+                     [title]="!p.enWooCommerce ? 'No está en WooCommerce' : (!p.stockConocido ? 'Sin stock conocido' : '')">
+            </td>
+          </ng-container>
           <ng-container matColumnDef="estado">
             <th mat-header-cell *matHeaderCellDef></th>
             <td mat-cell *matCellDef="let p">
@@ -715,12 +738,34 @@
             <td mat-cell *matCellDef="let p">${{ p.price }}</td>
           </ng-container>
           <ng-container matColumnDef="stock">
-            <th mat-header-cell *matHeaderCellDef>Stock</th>
-            <td mat-cell *matCellDef="let p">{{ p.stock }}</td>
+            <th mat-header-cell *matHeaderCellDef>Stock interno</th>
+            <td mat-cell *matCellDef="let p">{{ p.stockConocido ? p.stock : '—' }}</td>
           </ng-container>
-          <ng-container matColumnDef="categoryName">
-            <th mat-header-cell *matHeaderCellDef>Categoría</th>
-            <td mat-cell *matCellDef="let p">{{ p.categoryName || '—' }}</td>
+          <ng-container matColumnDef="forzar">
+            <th mat-header-cell *matHeaderCellDef matTooltip="Si está marcado, a la web se envía stock 0 aunque haya existencias">Forzar 0</th>
+            <td mat-cell *matCellDef="let p">
+              <input type="checkbox" [checked]="p.forceZeroStock" (change)="toggleForceZeroSync(p, $any($event.target).checked)" [disabled]="syncEnviandoStock">
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="efectivo">
+            <th mat-header-cell *matHeaderCellDef>A enviar</th>
+            <td mat-cell *matCellDef="let p">{{ p.stockConocido ? p.stockEfectivo : '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="enviado">
+            <th mat-header-cell *matHeaderCellDef matTooltip="Último stock enviado a la web desde esta pestaña">En web (último envío)</th>
+            <td mat-cell *matCellDef="let p">{{ p.stockWebEnviado ?? '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="diferencia">
+            <th mat-header-cell *matHeaderCellDef>Diferencia</th>
+            <td mat-cell *matCellDef="let p">
+              <ng-container *ngIf="syncPuedeSeleccionar(p)">
+                <span *ngIf="syncDiferencia(p) === null" class="sp-diff sp-diff-pend">sin enviar</span>
+                <span *ngIf="syncDiferencia(p) !== null && syncDiferencia(p) === 0" class="sp-diff sp-diff-ok">✓ igual</span>
+                <span *ngIf="syncDiferencia(p) !== null && syncDiferencia(p)! > 0" class="sp-diff sp-diff-up">▲ +{{ syncDiferencia(p) }}</span>
+                <span *ngIf="syncDiferencia(p) !== null && syncDiferencia(p)! < 0" class="sp-diff sp-diff-down">▼ {{ syncDiferencia(p) }}</span>
+              </ng-container>
+              <span *ngIf="!syncPuedeSeleccionar(p)">—</span>
+            </td>
           </ng-container>
           <ng-container matColumnDef="acciones">
             <th mat-header-cell *matHeaderCellDef></th>

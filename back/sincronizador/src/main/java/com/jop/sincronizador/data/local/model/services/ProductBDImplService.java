@@ -81,6 +81,7 @@ public List<LaudusProduct> addProductAll(List<LaudusProduct> products) {
             if (!Objects.equals(product.getModifiedAt(), existingProduct.getModifiedAt())) {
                 product.setIdWP(existingProduct.getIdWP()); // conservar idWP
                 product.setForceZeroStock(existingProduct.getForceZeroStock()); // conservar override manual
+                product.setStockWebEnviado(existingProduct.getStockWebEnviado()); // conservar referencia de stock enviado
                 sortedProducts.add(product);
             }
         } else {

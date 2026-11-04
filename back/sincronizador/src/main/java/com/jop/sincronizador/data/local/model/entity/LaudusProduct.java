@@ -53,4 +53,10 @@ public class LaudusProduct {
     // re-sync (ver ProductBDImplService.addProductAll) para no perderse.
     @Column(name = "force_zero_stock")
     private Boolean forceZeroStock = false;
+
+    // Último stock efectivo (ya con el override de forzar 0 aplicado) que se envió
+    // a WooCommerce desde la pestaña Productos. Null = no se ha enviado desde ahí,
+    // o se desconoce. Es la referencia para calcular la diferencia en esa pestaña.
+    @Column(name = "stock_web_enviado")
+    private Integer stockWebEnviado;
 }

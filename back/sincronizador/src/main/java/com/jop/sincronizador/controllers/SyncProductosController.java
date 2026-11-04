@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -68,8 +69,7 @@ public class SyncProductosController {
         List<Categorie> categorias = productService.findAllCategorie();
         Map<String, Categorie> categoryMap = categorias.stream()
             .collect(Collectors.toMap(Categorie::getLaudusId, c -> c, (a, b) -> a));
-        Map<String, Integer> stockMap = stockRepository.findAll().stream()
-            .collect(Collectors.toMap(LaudusStock::getSku, LaudusStock::getStock, (a, b) -> a));
+        Map<String, Integer> stockMap = stockMap();
 
         List<Map<String, Object>> result = productos.stream()
             .filter(p -> p.getSku() != null && !p.getSku().isBlank())
@@ -79,6 +79,13 @@ public class SyncProductosController {
                 item.put("name", p.getDescription());
                 item.put("price", p.getUnitPriceWithTaxes());
                 item.put("stock", stockMap.getOrDefault(p.getSku(), 0));
+                // Sin fila en laudus_stock no hay stock conocido: no se puede enviar a la web.
+                boolean stockConocido = stockMap.containsKey(p.getSku());
+                boolean forzado = Boolean.TRUE.equals(p.getForceZeroStock());
+                item.put("stockConocido", stockConocido);
+                item.put("forceZeroStock", forzado);
+                item.put("stockEfectivo", forzado ? 0 : stockMap.getOrDefault(p.getSku(), 0));
+                item.put("stockWebEnviado", p.getStockWebEnviado());
                 Categorie cat = p.getProductCategoryId() != null ? categoryMap.get(p.getProductCategoryId()) : null;
                 item.put("categoryName", cat != null ? cat.getLaudusName() : null);
                 item.put("enWooCommerce", p.getIdWP() != null && !p.getIdWP().isBlank());
@@ -189,6 +196,79 @@ public class SyncProductosController {
             return ResponseEntity.ok(Map.of("ok", true));
         }
         return ResponseEntity.status(502).body(Map.of("error", "WooCommerce respondió con código " + code));
+    }
+
+    // Envía a WooCommerce SOLO el stock de los SKUs indicados (no toca nombre, precio,
+    // descripciones, estado ni categorías). Manda el stock efectivo: 0 si el producto
+    // tiene "forzar stock 0", si no el de laudus_stock. Al confirmar WooCommerce
+    // (200) guarda ese valor en stockWebEnviado, que es la referencia de la
+    // diferencia en la pestaña Productos. No crea productos: sin idWP se omite.
+    @PostMapping("/enviar-stock")
+    public ResponseEntity<Map<String, Object>> enviarStock(@RequestBody Map<String, List<String>> body) {
+        List<String> skus = body.get("skus");
+        if (skus == null || skus.isEmpty()) {
+            return ResponseEntity.status(400).body(Map.of("error", "Sin SKUs para enviar"));
+        }
+
+        Map<String, LaudusProduct> porSku = new HashMap<>();
+        for (LaudusProduct p : productService.findBySkuIn(skus)) {
+            if (p.getSku() != null) porSku.put(p.getSku(), p);
+        }
+        Map<String, Integer> stockMap = stockMap();
+
+        List<Map<String, Object>> resultados = new ArrayList<>();
+        int enviados = 0, errores = 0, omitidos = 0;
+
+        for (String sku : skus) {
+            Map<String, Object> r = new HashMap<>();
+            r.put("sku", sku);
+            LaudusProduct p = porSku.get(sku);
+
+            if (p == null) {
+                r.put("estado", "no_encontrado");
+                omitidos++;
+            } else if (p.getIdWP() == null || p.getIdWP().isBlank()) {
+                r.put("estado", "no_en_woocommerce");
+                omitidos++;
+            } else if (!stockMap.containsKey(sku)) {
+                r.put("estado", "sin_stock_conocido");
+                omitidos++;
+            } else {
+                int efectivo = Boolean.TRUE.equals(p.getForceZeroStock()) ? 0 : stockMap.get(sku);
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("manage_stock", true);
+                payload.put("stock_quantity", efectivo);
+                Integer code = restLaudusWordP.ProductPut(p.getIdWP(), gson.toJson(payload),
+                    "stock actualizado (" + sku + " → " + efectivo + ")");
+                if (code != null && code == 200) {
+                    p.setStockWebEnviado(efectivo);
+                    productService.updateProduct(p);
+                    r.put("estado", "ok");
+                    r.put("stockEnviado", efectivo);
+                    enviados++;
+                } else {
+                    r.put("estado", "error");
+                    r.put("detalle", "WooCommerce respondió con código " + code);
+                    errores++;
+                }
+            }
+            resultados.add(r);
+        }
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("enviados", enviados);
+        res.put("errores", errores);
+        res.put("omitidos", omitidos);
+        res.put("resultados", resultados);
+        return ResponseEntity.ok(res);
+    }
+
+    private Map<String, Integer> stockMap() {
+        Map<String, Integer> map = new HashMap<>();
+        for (LaudusStock s : stockRepository.findAll()) {
+            if (s.getSku() != null && s.getStock() != null) map.putIfAbsent(s.getSku(), s.getStock());
+        }
+        return map;
     }
 
     private String getOrNull(JsonObject o, String key) {

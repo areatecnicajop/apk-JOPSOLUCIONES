@@ -4,14 +4,13 @@ import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { Order } from '../../interfaces/order.model';
 import { CommonModule, DecimalPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subscription } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../auth/auth.service';
 import { ClientesComponent } from '../clientes/clientes.component';
 import { MapaComponent } from '../mapa/mapa.component';
 import { CategoriasComponent } from '../categorias/categorias.component';
 import { ProductosApkComponent } from '../productos-apk/productos-apk.component';
-import { StockManualComponent } from '../stock-manual/stock-manual.component';
 import { CategoriasWebComponent } from '../categorias-web/categorias-web.component';
 import { PedidoService, Pedido } from '../../services/pedido.service';
 import { AppSettingsService } from '../../services/app-settings.service';
@@ -75,6 +74,10 @@ interface SyncProductoRow {
   stock: number;
   categoryName: string | null;
   enWooCommerce: boolean;
+  stockConocido: boolean;
+  forceZeroStock: boolean;
+  stockEfectivo: number;
+  stockWebEnviado: number | null;
 }
 
 interface LaudusCustomField {
@@ -118,7 +121,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, FormsModule, ClientesComponent, MapaComponent, CategoriasComponent, ProductosApkComponent, StockManualComponent, CategoriasWebComponent, DecimalPipe, DatePipe, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatChipsModule, MatTooltipModule],
+  imports: [CommonModule, HttpClientModule, FormsModule, ClientesComponent, MapaComponent, CategoriasComponent, ProductosApkComponent, CategoriasWebComponent, DecimalPipe, DatePipe, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatChipsModule, MatTooltipModule],
   templateUrl: './home-page.component.html',
   styleUrls: ['./home-page.component.css'],
   providers: [ApiService]
@@ -182,7 +185,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
   // Al reactivarlo, restaurar activeView = 'sync' como vista inicial.
   showPanelSync: boolean = false;
   openSection: string = 'sync';
-  activeView: string = 'stock-manual';
+  activeView: string = 'sync-productos';
 
   // Config
   gmapsKeyInput: string = '';
@@ -327,7 +330,16 @@ export class HomePageComponent implements OnInit, OnDestroy {
   syncProductosLoading = false;
   syncProductosError = '';
   syncProductosSearch = '';
-  syncProductosColumns = ['estado', 'sku', 'name', 'price', 'stock', 'categoryName', 'acciones'];
+  syncProductosColumns = ['sel', 'estado', 'sku', 'name', 'price', 'stock', 'forzar', 'efectivo', 'enviado', 'diferencia', 'acciones'];
+
+  // Stock: selección y envío a WooCommerce (solo stock, ver SyncProductosController.enviarStock)
+  syncSoloDiferencias = false;
+  syncSeleccion = new Set<string>();
+  syncActualizandoStock = false;
+  syncEnviandoStock = false;
+  syncEnvioProgreso = '';
+  syncStockMsg = '';
+  syncStockMsgError = false;
 
   syncSelected: SyncProductoRow | null = null;
   syncDatosWoo: any = null;
@@ -367,6 +379,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.connectWebSocket();
     this.loadSyncAutoStatus();
+    if (this.activeView === 'sync-productos') this.loadSyncProductos();
     this.gmapsKeyInput = this.appSettings.getGoogleMapsKey();
     this.gmapsSaved    = !!this.gmapsKeyInput;
   }
@@ -1444,11 +1457,138 @@ export class HomePageComponent implements OnInit, OnDestroy {
 
   get filteredSyncProductos(): SyncProductoRow[] {
     const q = this.syncProductosSearch.toLowerCase();
-    if (!q) return this.syncProductos;
     return this.syncProductos.filter(p =>
-      p.sku.toLowerCase().includes(q) ||
-      p.name?.toLowerCase().includes(q) ||
-      (p.categoryName?.toLowerCase().includes(q) ?? false));
+      (!this.syncSoloDiferencias || this.syncNecesitaEnvio(p)) &&
+      (!q ||
+        p.sku.toLowerCase().includes(q) ||
+        p.name?.toLowerCase().includes(q) ||
+        (p.categoryName?.toLowerCase().includes(q) ?? false)));
+  }
+
+  // ── Stock: diferencia, selección y envío ─────────────────────────
+
+  // Solo se puede enviar stock a productos que ya existen en WooCommerce y tienen stock conocido.
+  syncPuedeSeleccionar(p: SyncProductoRow): boolean {
+    return p.enWooCommerce && p.stockConocido;
+  }
+
+  // Hay que enviar si nunca se envió desde acá (sin referencia) o si el stock efectivo cambió.
+  syncNecesitaEnvio(p: SyncProductoRow): boolean {
+    return this.syncPuedeSeleccionar(p) && (p.stockWebEnviado === null || p.stockWebEnviado !== p.stockEfectivo);
+  }
+
+  // null = sin referencia (nunca enviado) o no aplica; 0 = sin diferencia.
+  syncDiferencia(p: SyncProductoRow): number | null {
+    if (!this.syncPuedeSeleccionar(p) || p.stockWebEnviado === null) return null;
+    return p.stockEfectivo - p.stockWebEnviado;
+  }
+
+  get syncSeleccionables(): SyncProductoRow[] {
+    return this.filteredSyncProductos.filter(p => this.syncPuedeSeleccionar(p));
+  }
+
+  get syncTodosSeleccionados(): boolean {
+    const sel = this.syncSeleccionables;
+    return sel.length > 0 && sel.every(p => this.syncSeleccion.has(p.sku));
+  }
+
+  get syncConDiferenciaCount(): number {
+    return this.syncProductos.filter(p => this.syncNecesitaEnvio(p)).length;
+  }
+
+  syncToggleSel(p: SyncProductoRow): void {
+    if (this.syncSeleccion.has(p.sku)) this.syncSeleccion.delete(p.sku);
+    else this.syncSeleccion.add(p.sku);
+  }
+
+  // Seleccionar todo / deseleccionar todo, solo sobre lo que se ve con el filtro y la búsqueda actuales.
+  syncToggleTodos(): void {
+    if (this.syncTodosSeleccionados) {
+      this.syncSeleccionables.forEach(p => this.syncSeleccion.delete(p.sku));
+    } else {
+      this.syncSeleccionables.forEach(p => this.syncSeleccion.add(p.sku));
+    }
+  }
+
+  syncLimpiarSeleccion(): void {
+    this.syncSeleccion.clear();
+  }
+
+  // Trae el stock de Laudus (bodega 008) a la base interna. No toca WooCommerce.
+  actualizarStockInterno(): void {
+    this.syncActualizandoStock = true;
+    this.syncStockMsg = '';
+    this.syncStockMsgError = false;
+    this.http.post<{ status: string; updated: number }>(`${environment.baseUrl}sync/stock`, {}).subscribe({
+      next: res => {
+        this.syncActualizandoStock = false;
+        this.syncStockMsg = res.updated > 0
+          ? `Stock interno actualizado: ${res.updated} producto(s) cambiaron.`
+          : 'Stock interno al día: Laudus no reporta cambios.';
+        this.loadSyncProductos();
+      },
+      error: err => {
+        this.syncActualizandoStock = false;
+        this.syncStockMsgError = true;
+        this.syncStockMsg = err.error?.error ?? 'No se pudo actualizar el stock interno desde Laudus.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  toggleForceZeroSync(p: SyncProductoRow, value: boolean): void {
+    this.http.put(`${environment.baseUrl}api/productos-web/${p.sku}/force-zero-stock`, { value }).subscribe({
+      next: () => {
+        p.forceZeroStock = value;
+        p.stockEfectivo = value ? 0 : p.stock;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.syncStockMsgError = true;
+        this.syncStockMsg = `No se pudo cambiar "forzar stock 0" de ${p.sku}.`;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  // Envía solo el stock de los seleccionados, de a 25 para poder mostrar avance.
+  async enviarStockSeleccionados(): Promise<void> {
+    const skus = Array.from(this.syncSeleccion);
+    if (skus.length === 0 || this.syncEnviandoStock) return;
+    if (!confirm(`¿Enviar el stock de ${skus.length} producto(s) a la web? Solo se modifica el stock en WooCommerce.`)) return;
+
+    this.syncEnviandoStock = true;
+    this.syncStockMsg = '';
+    this.syncStockMsgError = false;
+    let ok = 0, errores = 0, omitidos = 0;
+    const CHUNK = 25;
+
+    for (let i = 0; i < skus.length; i += CHUNK) {
+      const lote = skus.slice(i, i + CHUNK);
+      this.syncEnvioProgreso = `Enviando ${Math.min(i + CHUNK, skus.length)} de ${skus.length}...`;
+      this.cdr.detectChanges();
+      try {
+        const res: any = await firstValueFrom(
+          this.http.post(`${environment.baseUrl}sync/productos/enviar-stock`, { skus: lote }));
+        ok += res.enviados; errores += res.errores; omitidos += res.omitidos;
+        for (const r of res.resultados ?? []) {
+          if (r.estado === 'ok') {
+            const row = this.syncProductos.find(p => p.sku === r.sku);
+            if (row) row.stockWebEnviado = r.stockEnviado;
+            this.syncSeleccion.delete(r.sku);
+          }
+        }
+      } catch {
+        errores += lote.length;
+      }
+    }
+
+    this.syncEnviandoStock = false;
+    this.syncEnvioProgreso = '';
+    this.syncStockMsgError = errores > 0;
+    this.syncStockMsg = `Envío terminado: ${ok} enviado(s)` +
+      (errores ? `, ${errores} con error` : '') + (omitidos ? `, ${omitidos} omitido(s)` : '') + '.';
+    this.cdr.detectChanges();
   }
 
   openSyncProducto(p: SyncProductoRow): void {

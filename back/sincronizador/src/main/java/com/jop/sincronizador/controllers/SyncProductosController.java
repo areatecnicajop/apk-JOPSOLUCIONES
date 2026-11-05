@@ -252,6 +252,15 @@ public class SyncProductosController {
                 if (code != null && code == 200) {
                     p.setStockWebEnviado(efectivo);
                     productService.updateProduct(p);
+                    // Ya está en la web: deja de marcarse como "cambió en la última actualización"
+                    // (lo que había antes pasa a ser lo que se subió).
+                    stockRepository.findById(sku).ifPresent(s -> {
+                        if (Boolean.TRUE.equals(s.getCambioUltima()) || s.getStockAnterior() != null) {
+                            s.setCambioUltima(false);
+                            s.setStockAnterior(null);
+                            stockRepository.save(s);
+                        }
+                    });
                     r.put("estado", "ok");
                     r.put("stockEnviado", efectivo);
                     enviados++;

@@ -396,6 +396,11 @@ export class HomePageComponent implements OnInit, OnDestroy {
   syncActualizandoStock = false;
   syncEnviandoStock = false;
   syncEnvioProgreso = '';
+  syncEnvioTotal = 0;
+  syncEnvioHechos = 0;
+  syncEnvioOk = 0;
+  syncEnvioErr = 0;
+  syncEnvioActual = '';
   syncStockMsg = '';
   syncStockMsgError = false;
 
@@ -2116,10 +2121,15 @@ export class HomePageComponent implements OnInit, OnDestroy {
     this.syncStockMsg = '';
     this.syncStockMsgError = false;
     let ok = 0, errores = 0, omitidos = 0;
-    const CHUNK = 25;
+    const CHUNK = 5; // lotes chicos para que la barra avance con frecuencia
+    this.syncEnvioTotal = skus.length;
+    this.syncEnvioHechos = 0;
+    this.syncEnvioOk = 0;
+    this.syncEnvioErr = 0;
 
     for (let i = 0; i < skus.length; i += CHUNK) {
       const lote = skus.slice(i, i + CHUNK);
+      this.syncEnvioActual = lote.join(', ');
       this.syncEnvioProgreso = `Enviando ${Math.min(i + CHUNK, skus.length)} de ${skus.length}...`;
       this.cdr.detectChanges();
       try {
@@ -2129,17 +2139,27 @@ export class HomePageComponent implements OnInit, OnDestroy {
         for (const r of res.resultados ?? []) {
           if (r.estado === 'ok') {
             const row = this.syncProductos.find(p => p.sku === r.sku);
-            if (row) row.stockWebEnviado = r.stockEnviado;
+            if (row) {
+              row.stockWebEnviado = r.stockEnviado;
+              // Ya está en la web: el stock anterior pasa a ser el que se subió, así que deja de marcarse como cambiado.
+              row.stockCambio = false;
+              row.stockAnterior = null;
+            }
             this.syncSeleccion.delete(r.sku);
           }
         }
       } catch {
         errores += lote.length;
       }
+      this.syncEnvioHechos = Math.min(i + CHUNK, skus.length);
+      this.syncEnvioOk = ok;
+      this.syncEnvioErr = errores;
+      this.cdr.detectChanges();
     }
 
     this.syncEnviandoStock = false;
     this.syncEnvioProgreso = '';
+    this.syncEnvioActual = '';
     this.syncStockMsgError = errores > 0;
     this.syncStockMsg = `Envío terminado: ${ok} enviado(s)` +
       (errores ? `, ${errores} con error` : '') + (omitidos ? `, ${omitidos} omitido(s)` : '') + '.';

@@ -821,6 +821,23 @@
       </div>
     </div>
 
+    <!-- ====== AVANCE: enviando stock a la web (bloquea la pantalla mientras se procesa) ====== -->
+    <div class="modal-overlay se-overlay" *ngIf="syncEnviandoStock">
+      <div class="modal-box se-box" (click)="$event.stopPropagation()">
+        <div class="se-spinner"></div>
+        <div class="se-title">Enviando stock a la web...</div>
+        <div class="se-count">{{ syncEnvioHechos }} de {{ syncEnvioTotal }} productos</div>
+        <div class="se-bar"><div class="se-bar-fill" [style.width.%]="syncEnvioTotal ? (syncEnvioHechos / syncEnvioTotal) * 100 : 0"></div></div>
+        <div class="se-pct">{{ syncEnvioTotal ? ((syncEnvioHechos / syncEnvioTotal) * 100 | number:'1.0-0') : 0 }}%</div>
+        <div class="se-stats">
+          <span class="sp-diff sp-diff-ok">✓ {{ syncEnvioOk }} enviados</span>
+          <span class="sp-diff sp-diff-down" *ngIf="syncEnvioErr > 0">✕ {{ syncEnvioErr }} con error</span>
+        </div>
+        <div class="se-now" *ngIf="syncEnvioActual">Procesando: {{ syncEnvioActual }}</div>
+        <div class="fp-hint">No cierres ni recargues esta ventana hasta que termine.</div>
+      </div>
+    </div>
+
     <!-- ====== MENÚ DE FILTRO (estilo Excel) al hacer clic en el título de una columna ====== -->
     <ng-container *ngIf="syncMenu">
       <div class="sp-hf-backdrop" (click)="syncMenu = null"></div>

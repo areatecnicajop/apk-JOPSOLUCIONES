@@ -44,8 +44,18 @@ public class FalabellaTestController {
         return call("GetProducts", Map.of("Limit", limit));
     }
 
+    // desde = fecha ISO (ej. 2026-07-01T00:00:00-03:00): sin ella Falabella solo devuelve ~60 días.
     @GetMapping("/test/falabella/ordenes")
-    public ResponseEntity<String> testOrders(@RequestParam(defaultValue = "10") String limit) {
-        return call("GetOrders", Map.of("Limit", limit, "SortBy", "created_at", "SortDirection", "DESC"));
+    public ResponseEntity<String> testOrders(@RequestParam(defaultValue = "10") String limit,
+                                             @RequestParam(required = false) String desde) {
+        Map<String, String> p = new java.util.HashMap<>(Map.of("Limit", limit, "SortBy", "created_at", "SortDirection", "DESC"));
+        if (desde != null && !desde.isBlank()) p.put("CreatedAfter", desde);
+        return call("GetOrders", p);
+    }
+
+    // Productos (SKU, precio pagado, despacho, estado) de UNA orden — para conciliar ventas.
+    @GetMapping("/test/falabella/orden-items")
+    public ResponseEntity<String> testOrderItems(@RequestParam String orderId) {
+        return call("GetOrderItems", Map.of("OrderId", orderId));
     }
 }

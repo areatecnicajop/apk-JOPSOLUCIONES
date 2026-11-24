@@ -432,7 +432,7 @@ public class FalabellaProductController {
         if (req.getSpecialPrice() != null) {
             DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             LocalDateTime desde = LocalDateTime.now();
-            LocalDateTime hasta = desde.plusMonths(3);
+            LocalDateTime hasta = desde.plusMonths(req.getSpecialMonths() != null && req.getSpecialMonths() > 0 ? req.getSpecialMonths() : 3);
             specialPriceTags.append("<SpecialPrice>").append(req.getSpecialPrice().longValue()).append("</SpecialPrice>")
                 .append("<SpecialFromDate>").append(desde.format(fmt)).append("</SpecialFromDate>")
                 .append("<SpecialToDate>").append(hasta.format(fmt)).append("</SpecialToDate>");
@@ -518,6 +518,48 @@ public class FalabellaProductController {
             + "</Product></Request>";
 
         return falabella.postXml("ProductUpdate", null, xml);
+    }
+
+    // Cambia SOLO el precio (normal y de oferta) de un producto ya publicado: no toca nombre, descripción,
+    // fotos, medidas ni stock. body = {"price": 12000, "specialPrice": 9000, "meses": 6}
+    @PostMapping("/falabella/productos/{sku}/precio")
+    public ResponseEntity<Map<String, Object>> updatePrice(@PathVariable String sku, @RequestBody Map<String, Object> body) {
+        Object pr = body.get("price");
+        if (pr == null) return ResponseEntity.status(400).body(Map.of("error", "Falta price"));
+        long price = ((Number) pr).longValue();
+        Object sp = body.get("specialPrice");
+        Object mm = body.get("meses");
+        int meses = mm instanceof Number ? ((Number) mm).intValue() : 6;
+
+        StringBuilder special = new StringBuilder();
+        if (sp instanceof Number) {
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            LocalDateTime desde = LocalDateTime.now();
+            special.append("<SpecialPrice>").append(((Number) sp).longValue()).append("</SpecialPrice>")
+                .append("<SpecialFromDate>").append(desde.format(fmt)).append("</SpecialFromDate>")
+                .append("<SpecialToDate>").append(desde.plusMonths(meses).format(fmt)).append("</SpecialToDate>");
+        }
+
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            + "<Request><Product>"
+            + "<SellerSku>" + FalabellaXml.escape(sku) + "</SellerSku>"
+            + "<BusinessUnits><BusinessUnit>"
+            + "<OperatorCode>" + OPERATOR_CODE + "</OperatorCode>"
+            + "<Price>" + price + "</Price>"
+            + special
+            + "</BusinessUnit></BusinessUnits>"
+            + "</Product></Request>";
+
+        FalabellaClient.FalabellaResponse res = falabella.postXml("ProductUpdate", null, xml);
+        String feedId = extractRequestId(res.body());
+        String feedStatus = feedId != null ? waitForFeedFinish(feedId, 20000) : null;
+
+        Map<String, Object> out = new HashMap<>();
+        out.put("statusCode", res.statusCode());
+        out.put("feedId", feedId);
+        out.put("feedStatus", feedStatus);
+        out.put("body", res.body());
+        return ResponseEntity.ok(out);
     }
 
     // Llamar una vez que FeedStatus confirmó que el producto se creó bien —

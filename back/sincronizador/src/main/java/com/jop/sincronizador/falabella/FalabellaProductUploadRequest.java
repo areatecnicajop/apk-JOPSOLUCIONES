@@ -31,6 +31,8 @@ public class FalabellaProductUploadRequest {
     // Precio de oferta (opcional). Si viene, las fechas se calculan solas acá
     // en el backend: hoy → hoy + 3 meses, el usuario no las toca.
     private Double specialPrice;
+    // Meses de vigencia del precio de oferta (por defecto 3, como siempre).
+    private Integer specialMonths;
 
     // Descripción editable — si viene, pisa la de Laudus (webDescription/description).
     private String description;

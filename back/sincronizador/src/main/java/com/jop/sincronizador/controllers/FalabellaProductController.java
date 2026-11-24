@@ -562,6 +562,49 @@ public class FalabellaProductController {
         return ResponseEntity.ok(out);
     }
 
+    // Igual que /precio pero para VARIOS productos en un solo envío (un solo feed), que es lo que Falabella
+    // espera: mandar uno por uno satura la API (HTTP 429).
+    // body = {"meses": 6, "items": [{"sku": "AF01", "price": 11000, "specialPrice": 9700}, ...]}
+    @PostMapping("/falabella/precios/lote")
+    public ResponseEntity<Map<String, Object>> updatePricesBatch(@RequestBody Map<String, Object> body) {
+        Object it = body.get("items");
+        if (!(it instanceof List) || ((List<?>) it).isEmpty()) return ResponseEntity.status(400).body(Map.of("error", "Faltan items"));
+        Object mm = body.get("meses");
+        int meses = mm instanceof Number ? ((Number) mm).intValue() : 6;
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        LocalDateTime desde = LocalDateTime.now();
+
+        StringBuilder xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?><Request>");
+        int n = 0;
+        for (Object o : (List<?>) it) {
+            Map<?, ?> m = (Map<?, ?>) o;
+            Object sku = m.get("sku");
+            Object price = m.get("price");
+            if (sku == null || !(price instanceof Number)) continue;
+            xml.append("<Product><SellerSku>").append(FalabellaXml.escape(sku.toString())).append("</SellerSku>")
+                .append("<BusinessUnits><BusinessUnit><OperatorCode>").append(OPERATOR_CODE).append("</OperatorCode>")
+                .append("<Price>").append(((Number) price).longValue()).append("</Price>");
+            Object sp = m.get("specialPrice");
+            if (sp instanceof Number) {
+                xml.append("<SpecialPrice>").append(((Number) sp).longValue()).append("</SpecialPrice>")
+                    .append("<SpecialFromDate>").append(desde.format(fmt)).append("</SpecialFromDate>")
+                    .append("<SpecialToDate>").append(desde.plusMonths(meses).format(fmt)).append("</SpecialToDate>");
+            }
+            xml.append("</BusinessUnit></BusinessUnits></Product>");
+            n++;
+        }
+        xml.append("</Request>");
+        if (n == 0) return ResponseEntity.status(400).body(Map.of("error", "Ningún item válido"));
+
+        FalabellaClient.FalabellaResponse res = falabella.postXml("ProductUpdate", null, xml.toString());
+        Map<String, Object> out = new HashMap<>();
+        out.put("productos", n);
+        out.put("statusCode", res.statusCode());
+        out.put("feedId", extractRequestId(res.body()));
+        out.put("body", res.body());
+        return ResponseEntity.ok(out);
+    }
+
     // Llamar una vez que FeedStatus confirmó que el producto se creó bien —
     // marca id_falabella localmente para que la tabla lo pinte en verde.
     @PostMapping("/falabella/productos/{sku}/confirmar")

@@ -1310,11 +1310,20 @@
                 </div>
                 <div class="fp-field">
                   <label class="fp-label">Precio *</label>
-                  <input class="config-input" type="number" [(ngModel)]="falabellaForm.price">
+                  <input class="config-input" type="number" [(ngModel)]="falabellaForm.price" (input)="falabellaPrecioEditado = true">
                   <span class="fp-hint" *ngIf="falabellaPrecioLoading">Calculando precio sugerido...</span>
-                  <span class="fp-hint" *ngIf="!falabellaPrecioLoading && falabellaPrecioLaudus != null">
-                    Precio Laudus: ${{ falabellaPrecioLaudus }} · sugerido +30% (comisión Falabella), redondeado — editable
-                  </span>
+                  <ng-container *ngIf="!falabellaPrecioLoading && falabellaPrecioLaudus != null">
+                    <span class="fp-hint">
+                      Precio Laudus (web): ${{ falabellaPrecioLaudus }} ·
+                      <a href="javascript:void(0)" (click)="cargarPrecioSugerido(true)" title="Calcula de nuevo con la categoría y el paquete actuales">↻ Recalcular sugerido</a>
+                    </span>
+                    <div class="fp-hint" *ngIf="falabellaPrecioDetalle as d">
+                      El precio sugerido es lo mínimo para recibir lo mismo que en la web, después de comisión y despacho.<br>
+                      Con el precio sugerido: comisión {{ d.comisionPct }}% = ${{ d.comision }} · despacho (paquete {{ d.tallaTramo }}) = ${{ d.despacho }} ·
+                      <b>recibes ${{ d.neto }}</b>
+                    </div>
+                    <div class="fp-hint sp-msg-error" *ngFor="let a of falabellaPrecioDetalle?.avisos">⚠️ {{ a }}</div>
+                  </ng-container>
                 </div>
                 <div class="fp-field">
                   <label class="fp-label">Precio de oferta (opcional)</label>
@@ -1351,19 +1360,19 @@
                 <div class="fp-dims-2">
                   <div class="fp-field">
                     <label class="fp-label">Alto (cm) *</label>
-                    <input class="config-input" type="number" [(ngModel)]="falabellaForm.packageHeight" (ngModelChange)="saveFalabellaDefaults()">
+                    <input class="config-input" type="number" [(ngModel)]="falabellaForm.packageHeight" (ngModelChange)="onDimensionesCambian()">
                   </div>
                   <div class="fp-field">
                     <label class="fp-label">Ancho (cm) *</label>
-                    <input class="config-input" type="number" [(ngModel)]="falabellaForm.packageWidth" (ngModelChange)="saveFalabellaDefaults()">
+                    <input class="config-input" type="number" [(ngModel)]="falabellaForm.packageWidth" (ngModelChange)="onDimensionesCambian()">
                   </div>
                   <div class="fp-field">
                     <label class="fp-label">Largo (cm) *</label>
-                    <input class="config-input" type="number" [(ngModel)]="falabellaForm.packageLength" (ngModelChange)="saveFalabellaDefaults()">
+                    <input class="config-input" type="number" [(ngModel)]="falabellaForm.packageLength" (ngModelChange)="onDimensionesCambian()">
                   </div>
                   <div class="fp-field">
                     <label class="fp-label">Peso (kg) *</label>
-                    <input class="config-input" type="number" [(ngModel)]="falabellaForm.packageWeight" (ngModelChange)="saveFalabellaDefaults()">
+                    <input class="config-input" type="number" [(ngModel)]="falabellaForm.packageWeight" (ngModelChange)="onDimensionesCambian()">
                   </div>
                 </div>
               </div>

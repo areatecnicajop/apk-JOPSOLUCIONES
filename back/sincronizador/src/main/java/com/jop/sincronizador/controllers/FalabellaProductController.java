@@ -36,6 +36,7 @@ import com.jop.sincronizador.data.local.model.entity.LaudusProduct;
 import com.jop.sincronizador.data.local.model.entity.LaudusStock;
 import com.jop.sincronizador.data.local.model.services.IProductBDService;
 import com.jop.sincronizador.falabella.FalabellaClient;
+import com.jop.sincronizador.falabella.FalabellaPriceCalculator;
 import com.jop.sincronizador.falabella.FalabellaProductUploadRequest;
 import com.jop.sincronizador.falabella.FalabellaXml;
 import com.jop.sincronizador.repository.PssWriteRepositoryStock;
@@ -52,6 +53,9 @@ public class FalabellaProductController {
 
     @Autowired
     private FalabellaClient falabella;
+
+    @Autowired
+    private FalabellaPriceCalculator priceCalculator;
 
     @Autowired
     private IProductBDService bd;
@@ -275,20 +279,37 @@ public class FalabellaProductController {
         }
     }
 
-    // Precio sugerido para cubrir la comisión de Falabella: precio de Laudus
-    // + 30% mínimo, redondeado hacia arriba al centenar más cercano.
+    // Precio sugerido REAL: el menor precio (redondeado al centenar) con el que, descontada la comisión de la
+    // categoría y el despacho según la talla logística, se recibe lo mismo que vendiendo en la web.
+    // Ver FalabellaPriceCalculator. alto/ancho/largo (cm), peso (kg) y categoriaPath son opcionales:
+    // sin ellos se avisa y se asume lo más común (categoría de compresores, talla 0–1 kg).
     @GetMapping("/falabella/productos/{sku}/precio-sugerido")
-    public ResponseEntity<Map<String, Object>> precioSugerido(@PathVariable String sku) {
+    public ResponseEntity<Map<String, Object>> precioSugerido(@PathVariable String sku,
+            @RequestParam(required = false) String categoriaPath,
+            @RequestParam(required = false) Double alto,
+            @RequestParam(required = false) Double ancho,
+            @RequestParam(required = false) Double largo,
+            @RequestParam(required = false) Double peso) {
         List<LaudusProduct> matches = bd.findBySkuIn(List.of(sku));
         if (matches.isEmpty()) {
             return ResponseEntity.status(404).body(Map.of("error", "SKU no encontrado en laudus_products"));
         }
         Integer precioLaudus = matches.get(0).getUnitPriceWithTaxes();
         if (precioLaudus == null) precioLaudus = 0;
-        long sugerido = (long) Math.ceil(precioLaudus * 1.30 / 100.0) * 100;
+
+        FalabellaPriceCalculator.Resultado r = priceCalculator.calcular(precioLaudus, categoriaPath, alto, ancho, largo, peso);
+
         Map<String, Object> result = new HashMap<>();
         result.put("precioLaudus", precioLaudus);
-        result.put("precioSugerido", sugerido);
+        result.put("precioSugerido", r.precioSugerido());
+        result.put("comisionPct", r.comisionPct());
+        result.put("comision", r.comision());
+        result.put("despacho", r.despacho());
+        result.put("tallaKg", r.tallaKg());
+        result.put("tallaTramo", r.tallaTramo());
+        result.put("neto", r.neto());
+        result.put("categoriaUsada", r.categoriaUsada());
+        result.put("avisos", r.avisos());
         return ResponseEntity.ok(result);
     }
 

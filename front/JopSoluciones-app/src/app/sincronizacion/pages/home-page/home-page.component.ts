@@ -344,6 +344,10 @@ export class HomePageComponent implements OnInit, OnDestroy {
     name: ''
   };
   falabellaPrecioLaudus: number | null = null;
+  falabellaPrecioDetalle: { comisionPct: number; comision: number; despacho: number; tallaKg: number; tallaTramo: string; neto: number; categoriaUsada: string; avisos: string[] } | null = null;
+  // true cuando el usuario escribió el precio a mano (o ya existe en Falabella): ahí no se pisa solo.
+  falabellaPrecioEditado = false;
+  private falabellaPrecioTimer: any = null;
   falabellaPrecioLoading = false;
   falabellaDescripcionLoading = false;
 
@@ -1024,6 +1028,8 @@ export class HomePageComponent implements OnInit, OnDestroy {
     this.falabellaMarcaSeleccionada = null;
     this.falabellaCategoriaSearch = '';
     this.falabellaMarcaSearch = '';
+    this.falabellaPrecioEditado = false;
+    this.falabellaPrecioDetalle = null;
     this.falabellaForm = { conditionType: 'Nuevo', packageHeight: null, packageWidth: null, packageLength: null, packageWeight: null, ancho: '', largo: '', price: null, specialPrice: null, description: '', name: p.name ?? '' };
     this.falabellaExtraAttrs = {};
     this.falabellaFeeds = [];
@@ -1069,6 +1075,8 @@ export class HomePageComponent implements OnInit, OnDestroy {
         };
         esperar();
       }
+      // Las medidas del paquete precargadas cambian el despacho: se recalcula el precio sugerido.
+      this.programarRecalculoPrecio();
     }
   }
 
@@ -1086,6 +1094,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
         if (!datos.existe) { this.cdr.detectChanges(); return; }
 
         this.falabellaForm.price = datos.price ? Math.round(parseFloat(datos.price)) : null;
+        this.falabellaPrecioEditado = true; // producto ya publicado: su precio real no se pisa solo (sí se puede «Recalcular»)
         this.falabellaForm.specialPrice = datos.specialPrice ? Math.round(parseFloat(datos.specialPrice)) : null;
         this.falabellaForm.description = datos.description ?? '';
         this.falabellaForm.name = datos.name ?? this.falabellaForm.name;
@@ -1173,6 +1182,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
     this.falabellaExtraAttrs = {};
     this.loadFalabellaAtributos(cat.id);
     this.saveFalabellaDefaults();
+    this.programarRecalculoPrecio();
   }
 
   loadFalabellaAtributos(categoryId: string): void {
@@ -1359,20 +1369,48 @@ export class HomePageComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Precio de Laudus + 30% mínimo redondeado hacia arriba al centenar, para
-  // cubrir la comisión de Falabella — se precarga pero el usuario lo puede editar.
-  cargarPrecioSugerido(): void {
+  // Precio sugerido REAL: el menor precio con el que, descontada la comisión de la categoría y el despacho
+  // según la talla del paquete, se recibe lo mismo que vendiendo en la web (ver FalabellaPriceCalculator).
+  // Depende de la categoría y de peso/medidas, así que se recalcula cuando cambian — mientras el usuario
+  // no haya escrito el precio a mano. `forzar` (botón «Recalcular») pisa también un precio editado.
+  cargarPrecioSugerido(forzar = false): void {
     if (!this.falabellaSelected) return;
+    const f = this.falabellaForm;
+    const params: Record<string, string> = {};
+    if (this.falabellaCategoriaSeleccionada?.path) params['categoriaPath'] = this.falabellaCategoriaSeleccionada.path;
+    if (f.packageHeight != null) params['alto'] = String(f.packageHeight);
+    if (f.packageWidth != null) params['ancho'] = String(f.packageWidth);
+    if (f.packageLength != null) params['largo'] = String(f.packageLength);
+    if (f.packageWeight != null) params['peso'] = String(f.packageWeight);
     this.falabellaPrecioLoading = true;
-    this.http.get<{ precioLaudus: number; precioSugerido: number }>(`${environment.baseUrl}falabella/productos/${this.falabellaSelected.sku}/precio-sugerido`).subscribe({
+    this.http.get<any>(`${environment.baseUrl}falabella/productos/${this.falabellaSelected.sku}/precio-sugerido`, { params }).subscribe({
       next: res => {
         this.falabellaPrecioLaudus = res.precioLaudus;
-        this.falabellaForm.price = res.precioSugerido;
+        this.falabellaPrecioDetalle = res.comisionPct != null ? {
+          comisionPct: res.comisionPct, comision: res.comision, despacho: res.despacho, tallaKg: res.tallaKg,
+          tallaTramo: res.tallaTramo, neto: res.neto, categoriaUsada: res.categoriaUsada, avisos: res.avisos ?? []
+        } : null;
+        if (forzar || !this.falabellaPrecioEditado) {
+          this.falabellaForm.price = res.precioSugerido;
+          this.falabellaPrecioEditado = false;
+        }
         this.falabellaPrecioLoading = false;
         this.cdr.detectChanges();
       },
       error: () => { this.falabellaPrecioLoading = false; this.cdr.detectChanges(); }
     });
+  }
+
+  // Recalcula (con un pequeño retardo) cuando cambian categoría o medidas del paquete.
+  programarRecalculoPrecio(): void {
+    if (this.falabellaPrecioEditado) return;
+    clearTimeout(this.falabellaPrecioTimer);
+    this.falabellaPrecioTimer = setTimeout(() => this.cargarPrecioSugerido(), 400);
+  }
+
+  onDimensionesCambian(): void {
+    this.saveFalabellaDefaults();
+    this.programarRecalculoPrecio();
   }
 
   // Descripción que se va a mandar como <Description> — sale de Laudus
